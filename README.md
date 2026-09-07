@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:f15b18fd t:2026-09-07T17:54:12.196Z a:backlog grooming b:196 -->
+<!-- s:396882e8 t:2026-09-07T17:54:23.204Z a:api design b:5398 -->
 <!-- autobot:end -->
