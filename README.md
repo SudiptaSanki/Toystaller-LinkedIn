@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:396882e8 t:2026-09-07T17:54:23.204Z a:api design b:5398 -->
+<!-- s:deca9589 t:2026-09-08T17:51:14.866Z a:resolved conflicts b:2608 -->
 <!-- autobot:end -->
