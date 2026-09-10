@@ -86,7 +86,7 @@ function isRawMediaTab() {
 }
 
 function getActivePlatform() {
-    return window.ToystallerActivePlatform || window.ToystallerPlatforms['linkedin'] || {
+    return window.ToystallerActivePlatform || (window.ToystallerPlatforms && window.ToystallerPlatforms['linkedin']) || {
         name: 'fallback',
         hasActiveModal() { return false; },
         isInsideModal() { return false; },
@@ -202,8 +202,29 @@ function injectDownloadButtons() {
                     e.preventDefault();
                     e.stopPropagation();
                     if (!isVideo) {
-                        // Image: open high-res in new tab
-                        safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl() });
+                        const imgMagicId = Math.random().toString(36).substring(2, 15);
+                        media.setAttribute('data-magic-id', imgMagicId);
+                        let resolved = false;
+                        const handler = (ev) => {
+                            if (!ev.data || ev.data.type !== 'magic_response_react_url_' + imgMagicId) return;
+                            if (resolved) return;
+                            resolved = true;
+                            window.removeEventListener('message', handler);
+                            if (ev.data.url) {
+                                const finalUrl = platform.upgradeImageUrl ? platform.upgradeImageUrl(ev.data.url) : ev.data.url;
+                                safeSendMessage({ action: 'openInNewTab', url: finalUrl });
+                            } else {
+                                safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl() });
+                            }
+                        };
+                        window.addEventListener('message', handler);
+                        window.postMessage({ type: 'magic_get_react_url', id: imgMagicId, isVideo: false }, '*');
+                        setTimeout(() => {
+                            if (resolved) return;
+                            resolved = true;
+                            window.removeEventListener('message', handler);
+                            safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl() });
+                        }, 250);
                     } else {
                         // Video: resolve best URL and open in new tab
                         getMediaUrl((url) => {

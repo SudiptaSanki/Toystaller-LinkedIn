@@ -143,11 +143,17 @@
                             continue;
                         }
 
-                        const looksLikeImage = !isVideoContext && platform.looksLikeReactImage && platform.looksLikeReactImage(val, key);
-                        const looksLikeVideo = isVideoContext && platform.looksLikeReactVideo && platform.looksLikeReactVideo(val, key);
-
-                        if (looksLikeImage || looksLikeVideo) {
-                            return val;
+                        if (isVideoContext) {
+                            const isVideo = platform.looksLikeReactVideo && platform.looksLikeReactVideo(val, key);
+                            const isImage = platform.looksLikeReactImage && platform.looksLikeReactImage(val, key);
+                            if (isVideo && !isImage && !val.toLowerCase().includes('bytestart')) {
+                                return val;
+                            }
+                        } else {
+                            const isImage = platform.looksLikeReactImage && platform.looksLikeReactImage(val, key);
+                            if (isImage) {
+                                return val;
+                            }
                         }
                     }
                 } else if (typeof val === 'object') {

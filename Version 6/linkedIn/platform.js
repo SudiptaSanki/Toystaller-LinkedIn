@@ -146,6 +146,9 @@
 
         looksLikeReactVideo(val, key) {
             const lowerVal = val.toLowerCase();
+            if (lowerVal.includes('/image/') || lowerVal.includes('videocover') || lowerVal.includes('.jpg') || lowerVal.includes('.png') || lowerVal.includes('.webp')) {
+                return false;
+            }
             return (lowerVal.includes('licdn.com') && (lowerVal.includes('video') || lowerVal.includes('playlist') || lowerVal.includes('playback'))) || lowerVal.includes('.mp4');
         },
 
