@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:24ff1f07 t:2026-09-18T14:32:04.105Z a:design discussion b:6198 -->
+<!-- s:dec1d675 t:2026-09-18T14:32:10.838Z a:feature planning b:9721 -->
 <!-- autobot:end -->
