@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:22bcff3b t:2026-09-20T09:27:09.107Z a:ci pipeline update b:8081 -->
+<!-- s:f91e0f5c t:2026-09-20T18:58:41.009Z a:design discussion b:3207 -->
 <!-- autobot:end -->
