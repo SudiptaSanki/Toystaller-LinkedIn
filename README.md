@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:6f543b0f t:2026-09-23T09:32:21.149Z a:debugged issue b:5109 -->
+<!-- s:5315dbc8 t:2026-09-23T17:26:33.645Z a:improved error handling b:2376 -->
 <!-- autobot:end -->
