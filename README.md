@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:faee71ab t:2026-09-25T15:17:12.999Z a:release preparation b:1672 -->
+<!-- s:2f31c528 t:2026-09-25T15:17:26.499Z a:security audit b:5753 -->
 <!-- autobot:end -->
