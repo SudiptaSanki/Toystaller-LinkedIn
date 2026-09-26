@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:f66a70c0 t:2026-09-26T13:24:49.497Z a:api design b:3296 -->
+<!-- s:b7b49f23 t:2026-09-26T13:25:00.888Z a:performance profiling b:4134 -->
 <!-- autobot:end -->
