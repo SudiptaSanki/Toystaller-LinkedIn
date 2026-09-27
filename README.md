@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:ee62a26c t:2026-09-26T13:25:12.789Z a:reviewed codebase b:602 -->
+<!-- s:a06db8a7 t:2026-09-27T15:09:57.510Z a:bug triage b:5962 -->
 <!-- autobot:end -->
