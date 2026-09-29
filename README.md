@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:cefbdd14 t:2026-09-29T13:59:37.218Z a:updated documentation b:9111 -->
+<!-- s:c10fcd86 t:2026-09-29T13:59:47.788Z a:fixed edge case b:2973 -->
 <!-- autobot:end -->
