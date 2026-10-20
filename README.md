@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:4cf47909 t:2026-10-20T15:07:20.389Z a:reviewed pull request b:2051 -->
+<!-- s:cac6ffb2 t:2026-10-20T15:07:23.886Z a:design discussion b:2430 -->
 <!-- autobot:end -->
