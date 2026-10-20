@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:e378022e t:2026-10-20T15:06:46.631Z a:analyzed metrics b:6398 -->
+<!-- s:e10eeea2 t:2026-10-20T15:06:54.812Z a:fixed edge case b:3810 -->
 <!-- autobot:end -->
