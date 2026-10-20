@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:cac6ffb2 t:2026-10-20T15:07:23.886Z a:design discussion b:2430 -->
+<!-- s:99ea8457 t:2026-10-20T18:25:11.976Z a:monitoring setup b:2948 -->
 <!-- autobot:end -->
