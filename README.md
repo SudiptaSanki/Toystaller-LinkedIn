@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:e9af9c6a t:2026-10-23T09:33:59.851Z a:updated documentation b:9402 -->
+<!-- s:5f670d0b t:2026-10-23T09:34:07.448Z a:updated test coverage b:4970 -->
 <!-- autobot:end -->
