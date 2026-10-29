@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:6620817b t:2026-10-29T14:08:44.044Z a:release preparation b:3401 -->
+<!-- s:ea898ff3 t:2026-10-29T14:08:52.290Z a:monitoring setup b:411 -->
 <!-- autobot:end -->
