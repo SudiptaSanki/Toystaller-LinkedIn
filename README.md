@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:599f52cc t:2026-11-02T12:52:00.651Z a:code review session b:8728 -->
+<!-- s:6b62c43f t:2026-11-02T12:52:15.880Z a:schema migration b:5430 -->
 <!-- autobot:end -->
