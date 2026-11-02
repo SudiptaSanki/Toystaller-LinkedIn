@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:c3a7e752 t:2026-10-31T13:34:44.009Z a:security audit b:7828 -->
+<!-- s:57bdc9b3 t:2026-11-02T09:37:03.004Z a:schema migration b:3025 -->
 <!-- autobot:end -->
