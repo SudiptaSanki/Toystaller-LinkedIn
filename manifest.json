@@ -31,7 +31,6 @@
       "js": [
         "platforms/linkedin.js",
         "overlay_manager.js",
-        "core/content_core.js",
         "content_script.js"
       ],
       "run_at": "document_start"

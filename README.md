@@ -163,16 +163,10 @@ Look in the top-right corner of the Extensions page and toggle the switch labele
 
 ### Step 4: Load Unpacked Extension
 1. Click on the **Load unpacked** button in the top-left toolbar.
-2. In the folder selection dialog, navigate to and select either:
-   - The **repository root** directory:
-     ```
-     Toystaller-LinkedIn/
-     ```
-   - **OR** the platform package directory:
-     ```
-     Toystaller-LinkedIn/linkedin/
-     ```
-   *(Both contain a self-contained, valid `manifest.json`).*
+2. In the folder selection dialog, navigate to and select the repository root directory:
+   ```
+   Toystaller-LinkedIn/
+   ```
 3. Click **Select Folder** (or **Open**).
 
 ---
@@ -205,40 +199,19 @@ Look in the top-right corner of the Extensions page and toggle the switch labele
 
 ```text
 Toystaller-LinkedIn/
-├── core/
-│   ├── background_core.js     # Background Service Worker for downloads & webRequest
-│   ├── content_core.js        # Content script orchestrator & button injection
-│   ├── interceptor_core.js    # Main-world Fetch/XHR interceptor & React Fiber reader
-│   └── overlay_manager.js     # Smart DOM positioning, locked corners & sticky header isolation
-├── linkedin/                  # Standalone platform package (loadable unpacked)
-│   ├── core/                  # Self-contained modular core
-│   │   ├── background_core.js
-│   │   ├── content_core.js
-│   │   ├── interceptor_core.js
-│   │   └── overlay_manager.js
-│   ├── background.js          # Background entry point
-│   ├── content.js             # Content script entry point
-│   ├── platform.js            # LinkedIn-specific section detector & quality extractors
-│   ├── player.html            # Dark-mode Anti-Redirect HTML5 video player
-│   ├── player.js              # Video player controller & direct download handler
-│   ├── popup.html             # Overlay settings toggle menu
-│   ├── popup.js               # Section toggle storage controller
-│   ├── rules.json             # DeclarativeNetRequest header injection for CDN bypass
-│   ├── Toystaller_logo.png    # Platform package branding
-│   └── manifest.json          # Manifest V3 configuration
 ├── platforms/
-│   └── linkedin.js            # Platform definitions for root loader
-├── background_script.js       # Root background service worker
-├── content_script.js          # Root content script
-├── overlay_manager.js         # Root overlay manager
-├── page_interceptor.js        # Root page interceptor
-├── player.html                # Root dark-mode Anti-Redirect HTML5 video player
-├── player.js                  # Root video player controller
-├── popup.html                 # Root overlay settings toggle menu
-├── popup.js                   # Root section toggle controller
-├── rules.json                 # DeclarativeNetRequest ruleset
+│   └── linkedin.js            # Platform definitions & quality extractors
+├── background_script.js       # Background Service Worker for downloads & webRequest
+├── content_script.js          # Unified content script orchestrator & button injector
+├── overlay_manager.js         # Smart DOM positioning, locked corners & modal isolation
+├── page_interceptor.js        # Main-world Fetch/XHR interceptor & React Fiber reader
+├── player.html                # Dark-mode Anti-Redirect HTML5 video player
+├── player.js                  # Video player controller & direct download handler
+├── popup.html                 # Overlay settings toggle menu
+├── popup.js                   # Section toggle storage controller
+├── rules.json                 # DeclarativeNetRequest header injection for CDN bypass
 ├── manifest.json              # Root Manifest V3 (loadable unpacked)
-├── Toystaller_logo.png        # Extension icon / branding
+├── Toystaller_logo.png        # Extension icon / branding (optimized)
 ├── DETAILS.md                 # Exhaustive technical documentation & architecture guide
 ├── CONTRIBUTING.md            # Contributing guidelines & architecture reference
 ├── LICENSE                    # MIT License

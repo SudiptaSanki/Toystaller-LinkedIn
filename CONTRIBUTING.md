@@ -186,8 +186,7 @@ Handles file saving via `chrome.downloads.download({ url, filename, saveAs: true
 ## 9. Development, Building & Contributing
 
 ### Repository Structure
-- **Root (`/`)**: Can be loaded directly unpacked in Chrome (`chrome://extensions/` -> Load unpacked -> select repository root).
-- **Platform Folder (`linkedin/`)**: Standalone platform package directory, also directly loadable unpacked.
+- **Root (`/`)**: Load directly unpacked in Chrome (`chrome://extensions/` -> Load unpacked -> select `Toystaller-LinkedIn` directory).
 
 ### How to Contribute
 1. Fork the repository.
