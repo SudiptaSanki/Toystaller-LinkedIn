@@ -19,7 +19,7 @@
     },
     "condition": {
       "urlFilter": "||licdn.com",
-      "resourceTypes": ["main_frame", "sub_frame", "media", "xmlhttprequest"]
+      "resourceTypes": ["main_frame", "sub_frame", "media", "xmlhttprequest", "other"]
     }
   },
   {
@@ -42,7 +42,7 @@
     },
     "condition": {
       "urlFilter": "||linkedin.com",
-      "resourceTypes": ["main_frame", "sub_frame", "media", "xmlhttprequest"]
+      "resourceTypes": ["main_frame", "sub_frame", "media", "xmlhttprequest", "other"]
     }
   }
 ]

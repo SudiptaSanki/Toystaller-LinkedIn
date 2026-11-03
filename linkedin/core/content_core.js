@@ -35,6 +35,7 @@ function triggerDownload(url) {
 function scoreVideoUrl(url) {
     let score = 0;
     const lower = url.toLowerCase();
+    if (lower.includes('/audio') || lower.includes('audio')) score -= 1000;
     if (lower.includes('.mp4') || lower.includes('.m4v')) score += 10;
     if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('/playlist/') || lower.includes('/manifest/') || lower.includes('stream_type=dash') || lower.includes('dash')) score -= 50;
     if (lower.includes('bytestart') || lower.includes('byteend')) score -= 50;
@@ -58,16 +59,11 @@ function pickBestVideoUrl(urls) {
         const lower = u.toLowerCase();
         if (lower.includes('bytestart') || lower.includes('byteend')) return false;
         if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) return false;
-        if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash')) return false;
+        if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash') || lower.includes('manifest')) return false;
+        if (lower.includes('/audio') || lower.includes('audio')) return false;
         return true;
     });
-    if (playable.length === 0) {
-        playable = urls.filter(u => {
-            const lower = u.toLowerCase();
-            return !(lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp'));
-        });
-        if (playable.length === 0) return null;
-    }
+    if (playable.length === 0) return null;
     const sorted = [...playable].sort((a, b) => scoreVideoUrl(b) - scoreVideoUrl(a));
     return sorted[0];
 }
@@ -333,6 +329,16 @@ function injectDownloadButtons() {
 
             const getMediaUrl = (callback, silent = false) => {
                 if (isVideo) {
+                    // 1. Try DOM extraction first (LinkedIn provides progressive MP4s directly in data-sources)
+                    if (platform.extractVideoUrlFromDOM) {
+                        const domUrl = platform.extractVideoUrlFromDOM(media);
+                        if (domUrl) {
+                            callback(domUrl.split('#')[0]);
+                            return;
+                        }
+                    }
+
+                    // 2. Try React Fiber extraction
                     let resolved = false;
                     const handler = (e) => {
                         if (!e.data || e.data.type !== 'magic_response_react_url_' + magicId) return;
@@ -340,7 +346,7 @@ function injectDownloadButtons() {
                         resolved = true;
                         window.removeEventListener('message', handler);
                         if (e.data.url) {
-                            callback(e.data.url);
+                            callback(e.data.url.split('#')[0]);
                         } else {
                             getMediaUrlFallback(callback, silent);
                         }
@@ -361,6 +367,15 @@ function injectDownloadButtons() {
             };
 
             const getMediaUrlFallback = (callback, silent = false) => {
+                // Priority check: DOM sources attribute on/around media
+                if (isVideo && platform.extractVideoUrlFromDOM) {
+                    const domUrl = platform.extractVideoUrlFromDOM(media);
+                    if (domUrl) {
+                        callback(domUrl.split('#')[0]);
+                        return;
+                    }
+                }
+
                 const currentSrc = media.currentSrc || media.src || '';
                 const isBlobSource = currentSrc.startsWith('blob:') || currentSrc.startsWith('data:');
 
@@ -370,14 +385,14 @@ function injectDownloadButtons() {
                     if (platformVideos.length > 0) {
                         const best = pickBestVideoUrl(platformVideos);
                         if (best) {
-                            callback(best);
+                            callback(best.split('#')[0]);
                             return;
                         }
                     }
                 }
 
                 if (currentSrc && !isBlobSource && (!platform.isInternalUrl || !platform.isInternalUrl(currentSrc))) {
-                    callback(currentSrc);
+                    callback(currentSrc.split('#')[0]);
                     return;
                 }
 
@@ -385,32 +400,24 @@ function injectDownloadButtons() {
                 for (let source of sources) {
                     const src = source.src;
                     if (src && !src.startsWith('blob:') && !src.startsWith('data:') && (!platform.isInternalUrl || !platform.isInternalUrl(src))) {
-                        callback(src);
+                        callback(src.split('#')[0]);
                         return;
                     }
                 }
 
                 if (isVideo) {
-                    if (platform.extractVideoUrlFromDOM) {
-                        const domUrl = platform.extractVideoUrlFromDOM(media);
-                        if (domUrl) {
-                            callback(domUrl);
-                            return;
-                        }
-                    }
-
                     safeSendMessage({ action: 'getMediaUrls', mediaType: 'video' }, (response) => {
                         if (response && response.urls && response.urls.length > 0) {
                             const platformVideos = platform.filterBackgroundUrls ? platform.filterBackgroundUrls(response.urls, true) : response.urls;
                             const best = pickBestVideoUrl(platformVideos);
                             if (best) {
-                                callback(best);
+                                callback(best.split('#')[0]);
                                 return;
                             }
                         }
 
                         if (currentSrc && !isBlobSource) {
-                            callback(currentSrc);
+                            callback(currentSrc.split('#')[0]);
                             return;
                         }
 
@@ -423,7 +430,7 @@ function injectDownloadButtons() {
 
                 const fallbackUrl = media.currentSrc || media.src;
                 if (fallbackUrl && (!platform.isInternalUrl || !platform.isInternalUrl(fallbackUrl))) {
-                    callback(fallbackUrl);
+                    callback(fallbackUrl.split('#')[0]);
                 } else if (!silent) {
                     alert('Could not find a valid media URL to open.');
                 }

@@ -5,14 +5,14 @@
     'use strict';
 
     const params = new URLSearchParams(window.location.search);
-    const videoUrl = params.get('url');
+    const rawUrl = params.get('url');
 
     const player = document.getElementById('videoPlayer');
     const dlBtn = document.getElementById('dlBtn');
     const copyBtn = document.getElementById('copyBtn');
     const resText = document.getElementById('resolutionText');
 
-    if (!videoUrl) {
+    if (!rawUrl) {
         document.body.innerHTML = `
             <div style="color:#e4e6eb;font-family:sans-serif;text-align:center;margin-top:25vh;">
                 <h2>No video link specified</h2>
@@ -22,15 +22,20 @@
         return;
     }
 
+    // Strip any fragment identifier so standard HTML5 video elements can stream directly
+    const videoUrl = rawUrl.split('#')[0];
+
     player.src = videoUrl;
 
     player.addEventListener('loadedmetadata', () => {
         if (player.videoWidth && player.videoHeight) {
             resText.textContent = `${player.videoWidth} x ${player.videoHeight} • HD MP4`;
+            resText.style.color = '#8a8d91';
         }
     });
 
-    player.addEventListener('error', () => {
+    player.addEventListener('error', (e) => {
+        console.warn('Toystaller player video error:', player.error, e);
         resText.textContent = 'Unable to stream directly. Please click "Download Video" above to save the file.';
         resText.style.color = '#e74c3c';
     });

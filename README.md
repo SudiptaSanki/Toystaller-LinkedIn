@@ -224,7 +224,7 @@ Toystaller-LinkedIn/
 │   ├── popup.html             # Overlay settings toggle menu
 │   ├── popup.js               # Section toggle storage controller
 │   ├── rules.json             # DeclarativeNetRequest header injection for CDN bypass
-│   ├── icon.png               # Platform package branding
+│   ├── Toystaller_logo.png    # Platform package branding
 │   └── manifest.json          # Manifest V3 configuration
 ├── platforms/
 │   └── linkedin.js            # Platform definitions for root loader
@@ -239,7 +239,6 @@ Toystaller-LinkedIn/
 ├── rules.json                 # DeclarativeNetRequest ruleset
 ├── manifest.json              # Root Manifest V3 (loadable unpacked)
 ├── Toystaller_logo.png        # Extension icon / branding
-├── icon.png                   # Extension icon
 ├── DETAILS.md                 # Exhaustive technical documentation & architecture guide
 ├── CONTRIBUTING.md            # Contributing guidelines & architecture reference
 ├── LICENSE                    # MIT License
