@@ -229,26 +229,33 @@
 
             // Check el itself, video child if el is a wrapper, or nearest container with data-sources
             const targetEl = (el.tagName === 'VIDEO' ? el : (el.querySelector ? el.querySelector('video') : el)) || el;
-            const sourcesData = targetEl.getAttribute('data-sources') ||
+            let sourcesData = targetEl.getAttribute('data-sources') ||
                                 (targetEl.closest && targetEl.closest('[data-sources]') && targetEl.closest('[data-sources]').getAttribute('data-sources')) ||
                                 (targetEl.parentElement && targetEl.parentElement.getAttribute('data-sources')) ||
                                 (el.closest && el.closest('[data-sources]') && el.closest('[data-sources]').getAttribute('data-sources'));
 
+            if (!sourcesData && el.querySelector) {
+                const childWithSources = el.querySelector('[data-sources]');
+                if (childWithSources) sourcesData = childWithSources.getAttribute('data-sources');
+            }
+
             if (sourcesData) {
                 try {
-                    const sources = JSON.parse(sourcesData);
+                    const sources = typeof sourcesData === 'string' ? JSON.parse(sourcesData) : sourcesData;
                     if (Array.isArray(sources)) {
                         let best = null;
                         let bestBitrate = -1;
                         for (const src of sources) {
-                            if (src && src.src && typeof src.src === 'string' && this.isValidVideo(src.src)) {
-                                if (src.src.includes('manifest') || src.src.includes('.mpd') || src.src.includes('.m3u8')) continue;
+                            if (!src) continue;
+                            const srcUrl = src.src || src.url || src.streamingLocation;
+                            if (srcUrl && typeof srcUrl === 'string' && this.isValidVideo(srcUrl)) {
+                                if (srcUrl.includes('manifest') || srcUrl.includes('.mpd') || srcUrl.includes('.m3u8')) continue;
                                 if (src.type && (src.type.includes('mpegurl') || src.type.includes('dash'))) continue;
 
-                                const bitrate = parseInt(src['data-bitrate'] || src.bitRate || '0', 10);
-                                if (bitrate > bestBitrate) {
+                                const bitrate = parseInt(src['data-bitrate'] || src.bitRate || src.bitrate || '0', 10);
+                                if (bitrate > bestBitrate || !best) {
                                     bestBitrate = bitrate;
-                                    best = src.src;
+                                    best = srcUrl;
                                 }
                             }
                         }
@@ -256,6 +263,20 @@
                     }
                 } catch (e) {}
             }
+
+            // Fallback: Check if targetEl has direct non-blob src or source children
+            const currentSrc = targetEl.currentSrc || targetEl.src;
+            if (currentSrc && typeof currentSrc === 'string' && !currentSrc.startsWith('blob:') && !currentSrc.startsWith('data:') && this.isValidVideo(currentSrc)) {
+                return currentSrc.split('#')[0];
+            }
+
+            const sourceTags = targetEl.querySelectorAll ? targetEl.querySelectorAll('source') : [];
+            for (const s of sourceTags) {
+                if (s.src && !s.src.startsWith('blob:') && !s.src.startsWith('data:') && this.isValidVideo(s.src)) {
+                    return s.src.split('#')[0];
+                }
+            }
+
             return null;
         }
     };

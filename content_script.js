@@ -183,10 +183,6 @@ function injectDownloadButtons() {
                 openBtn.innerHTML = `<svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
                 openBtn.style.cssText = makeBtnStyle('rgba(30,30,30,0.75)');
 
-                if (isVideo) {
-                    openBtn.style.display = 'none';
-                }
-
                 openBtn.addEventListener('mouseenter', () => {
                     openBtn.style.opacity = '1';
                     openBtn.style.backgroundColor = 'rgba(10, 102, 194, 0.95)';
@@ -224,9 +220,24 @@ function injectDownloadButtons() {
                         }, 250);
                     } else {
                         // Video: resolve best URL and open in new tab (routed to player)
+                        if (openBtn.__resolvedVideoUrl) {
+                            safeSendMessage({ action: 'openInNewTab', url: openBtn.__resolvedVideoUrl, isVideo: true });
+                            return;
+                        }
+
+                        openBtn.style.opacity = '1';
+                        openBtn.style.backgroundColor = 'rgba(10, 102, 194, 0.95)';
+
                         getMediaUrl((url) => {
-                            safeSendMessage({ action: 'openInNewTab', url: url, isVideo: true });
-                        });
+                            openBtn.style.opacity = '0.55';
+                            openBtn.style.backgroundColor = 'rgba(30,30,30,0.75)';
+                            if (url) {
+                                openBtn.__resolvedVideoUrl = url;
+                                safeSendMessage({ action: 'openInNewTab', url: url, isVideo: true });
+                            } else {
+                                alert('Could not resolve video URL. If the video is paused, please click play and try again.');
+                            }
+                        }, false);
                     }
                 });
                 buttons.push(openBtn);
@@ -322,7 +333,6 @@ function injectDownloadButtons() {
                 getMediaUrl((url) => {
                     if (url) {
                         openBtn.__resolvedVideoUrl = url;
-                        openBtn.style.display = 'flex';
                     }
                 }, true);
             };
