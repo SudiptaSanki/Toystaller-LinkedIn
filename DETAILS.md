@@ -1,8 +1,8 @@
-# 📘 Toystaller Technical Specification & Deep Architecture Guide
+# 📘 Toystaller: LinkedIn Edition — Technical Specification & Deep Architecture Guide
 
 > **Main Global Multi-Platform Repository:** [https://github.com/SudiptaSanki/Toystaller](https://github.com/SudiptaSanki/Toystaller)  
 > **LinkedIn Specialized Repository:** [https://github.com/SudiptaSanki/Toystaller-LinkedIn](https://github.com/SudiptaSanki/Toystaller-LinkedIn)  
-> **Version:** 6.0 (Specialized Edition)  
+> **Version:** 1.0 (Specialized Edition)  
 > **Specification Target:** Chromium Manifest V3
 
 ---
@@ -15,11 +15,12 @@
    - [4.1 Main World Execution & Page Interceptor](#41-main-world-execution--page-interceptor)
    - [4.2 DOM & React Fiber State Inspection Engine](#42-dom--react-fiber-state-inspection-engine)
    - [4.3 Dynamic Network Interception Pipeline](#43-dynamic-network-interception-pipeline)
-   - [4.4 Content Script & Cross-World Messaging](#44-content-script--cross-world-messaging)
-   - [4.5 Overlay Manager & Collision Resolution Engine](#45-overlay-manager--collision-resolution-engine)
-   - [4.6 Modal Isolation & Zero-Bleed Backdrop Engine](#46-modal-isolation--zero-bleed-backdrop-engine)
-   - [4.7 LinkedIn CDN URL Upgrading](#47-linkedin-cdn-url-upgrading)
-   - [4.8 Background Service Worker & Download Pipeline](#48-background-service-worker--download-pipeline)
+   - [4.4 Anti-Redirect In-Browser HTML5 Player (The 302 Bypass Trick)](#44-anti-redirect-in-browser-html5-player-the-302-bypass-trick)
+   - [4.5 DeclarativeNetRequest & Header Injection](#45-declarativenetrequest--header-injection)
+   - [4.6 Overlay Manager & Corner-Locking Stability Engine](#46-overlay-manager--corner-locking-stability-engine)
+   - [4.7 Modal Isolation & Zero-Bleed Backdrop Engine](#47-modal-isolation--zero-bleed-backdrop-engine)
+   - [4.8 LinkedIn CDN URL Upgrading](#48-linkedin-cdn-url-upgrading)
+   - [4.9 Background Service Worker & Download Pipeline](#49-background-service-worker--download-pipeline)
 5. [LinkedIn Section-by-Section Handler Matrix](#5-linkedin-section-by-section-handler-matrix)
 6. [Performance, Memory & Lifecycle Optimization](#6-performance-memory--lifecycle-optimization)
 7. [Security, Sandboxing & Privacy Guarantees](#7-security-sandboxing--privacy-guarantees)
@@ -30,7 +31,7 @@
 
 ## 1. Executive Summary & Motivation
 
-**Toystaller** was created to solve a fundamental problem in the modern web: **access to original, uncompressed user media**. Social media networks such as LinkedIn employ sophisticated client-side rendering engines, dynamic adaptive streaming (DASH/HLS), and blob-based video players to obscure direct media sources.
+**Toystaller: LinkedIn Edition** was created to solve a fundamental problem in the modern web: **access to original, uncompressed user media**. Social media networks such as LinkedIn employ sophisticated client-side rendering engines, dynamic adaptive streaming (DASH/HLS), and blob-based video players to obscure direct media sources.
 
 Traditional approaches either:
 1. Require users to copy URLs and paste them into third-party websites loaded with advertisements, trackers, and aggressive rate limits.
@@ -52,8 +53,8 @@ LinkedIn's web client implements multiple anti-scraping and optimization layers:
    ├── 2. DASH Segmentation: Video streams are split via DASH manifests (.mpd).
    ├── 3. Custom DOM Overlay Layers: Transparent divs layer over <video>,
    │      intercepting all right-click and context menu events.
-   ├── 4. CDN 403 Restrictions: Requests to media.licdn.com with external
-   │      referrers or improper cookies may trigger HTTP 403 Forbidden.
+   ├── 4. CDN 403 / 302 Restrictions: Direct navigation to CDN video URLs in a browser tab
+   │      triggers HTTP 302 redirects back to the login page or HTTP 403 Forbidden.
    └── 5. Single-Page Navigation (SPA): Posts opened from feed render
           as modals without a full page reload, leaving background media active.
 ```
@@ -77,7 +78,7 @@ Toystaller bypasses all five barriers directly at the browser runtime level with
 |  |      ├─── React Fiber Tree (__reactFiber$, __reactProps$)                   |  |
 |  |      │       ▲                                                              |  |
 |  |      │       │ [Deep Object Traversal Engine]                               |  |
-|  |      │   [ interceptor_core.js + platform.js ]                              |  |
+|  |      │   [ page_interceptor.js + platforms/linkedin.js ]                    |  |
 |  |      │       ▲                                                              |  |
 |  |      └─── Network Hooks (window.fetch, window.XMLHttpRequest)               |  |
 |  |              │                                                              |  |
@@ -87,7 +88,7 @@ Toystaller bypasses all five barriers directly at the browser runtime level with
 |  +--------------┼--------------------------------------------------------------+  |
 |  | ISOLATED CONTENT SCRIPT WORLD                                               |  |
 |  |              ▼                                                              |  |
-|  |   [ content_core.js ] ◄───► [ platform.js (LinkedIn config) ]               |  |
+|  |   [ content_script.js ] ◄───► [ platforms/linkedin.js ]                     |  |
 |  |          │                                                                  |  |
 |  |          ▼                                                                  |  |
 |  |   [ overlay_manager.js ]                                                     |  |
@@ -102,10 +103,11 @@ Toystaller bypasses all five barriers directly at the browser runtime level with
 |  +--------------┼--------------------------------------------------------------+  |
 |  | BACKGROUND SERVICE WORKER                                                   |  |
 |  |              ▼                                                              |  |
-|  |   [ background_core.js ]                                                    |  |
+|  |   [ background_script.js ]                                                  |  |
 |  |      ├── chrome.downloads.download() ───► [ Local File System ]             |  |
-|  |      ├── chrome.tabs.create()         ───► [ HD Media New Tab ]             |  |
-|  |      └── chrome.webRequest            ───► [ Network Monitoring ]           |  |
+|  |      ├── player.html & player.js     ───► [ Anti-Redirect In-Browser Player ] |
+|  |      ├── chrome.tabs.create()         ───► [ High-Res Image Tab ]           |  |
+|  |      └── declarativeNetRequest        ───► [ rules.json Referer Rewrite ]   |  |
 |  +-----------------------------------------------------------------------------+  |
 +-----------------------------------------------------------------------------------+
 ```
@@ -115,84 +117,49 @@ Toystaller bypasses all five barriers directly at the browser runtime level with
 ## 4. Component Deep Dive
 
 ### 4.1 Main World Execution & Page Interceptor
-Chrome extension content scripts run by default in an **Isolated World**. While this protects DOM integrity, it hides the page's actual JavaScript variables, React Fiber tree, and prototype chains (`window.fetch`, `window.XMLHttpRequest`).
+Chrome extension content scripts run by default in an **Isolated World**. While this protects DOM integrity, it hides the page's actual JavaScript runtime, React Fiber tree, and prototype chains (`window.fetch`, `window.XMLHttpRequest`).
 
-Toystaller dynamically injects `platform.js` and `interceptor_core.js` directly into the **MAIN world** using standard script tag injection at `document_start`:
+Toystaller dynamically injects `platforms/linkedin.js` and `page_interceptor.js` directly into the **MAIN world** using script tag injection at `document_start`:
 
 ```javascript
 const script = document.createElement('script');
-script.src = chrome.runtime.getURL('platform.js');
+script.src = chrome.runtime.getURL('page_interceptor.js');
 (document.head || document.documentElement).appendChild(script);
 script.remove();
 ```
 
 ### 4.2 DOM & React Fiber State Inspection Engine
-LinkedIn stores video playback data in two key locations:
-
-**1. DOM `data-sources` Attribute:**
-LinkedIn `<video>` elements often contain a `data-sources` JSON attribute listing all available progressive streams with bitrate metadata:
-```json
-[
-  {"src": "https://dms.licdn.com/.../video.mp4", "type": "video/mp4", "data-bitrate": "3000000"},
-  {"src": "https://dms.licdn.com/.../video.mp4", "type": "video/mp4", "data-bitrate": "1500000"}
-]
-```
-Toystaller's `extractVideoUrlFromDOM()` parses this JSON, filters out DASH manifests and HLS playlists, and selects the highest-bitrate progressive MP4 stream.
-
-**2. React Fiber & Voyager API Properties:**
-When a user hovers or clicks a media item:
-1. The extension queries the target `<video>` or `<img>` DOM node.
-2. Traverses parent ancestors up to 12 levels in the DOM tree looking for Fiber instances.
-3. Recursively scans the Fiber state tree for candidate fields:
-   - `streamingUrl`: High-bandwidth progressive MP4 stream URL.
-   - `progressiveUrl`: Direct progressive download link.
-   - `height`: Resolution metadata for quality selection.
+LinkedIn encodes media sources in two distinct locations:
+1. **DOM `<video data-sources="...">`**: LinkedIn embeds JSON-encoded video playback streams directly onto `<video>` tags with bitrate metadata (`data-bitrate`). Toystaller parses this attribute and automatically selects the highest-bitrate progressive MP4.
+2. **React Fiber Instances (`__reactFiber$`, `__reactProps$`)**: Toystaller traverses component trees up to 12 levels to extract `streamingUrl` and `progressiveUrl` directly from React component state, while strictly excluding poster/cover images.
 
 ### 4.3 Dynamic Network Interception Pipeline
-In addition to DOM inspection, `interceptor_core.js` monkey-patches `window.fetch` and `window.XMLHttpRequest` at runtime:
-- Watches for responses from `linkedin.com`, `/api/v`, `voyager/api`, and `dms.licdn.com`.
-- Clones responses asynchronously without blocking page performance.
-- Parses JSON payloads in real time, harvesting valid video and image CDN URLs into an indexed memory set.
-- Automatically rejects thumbnail covers, DASH manifests (`.mpd`), and segmented chunks (`bytestart/byteend`) using an intelligent scoring algorithm:
-  $$\text{Score} = +10(\text{.mp4}) + 20(\text{1080p}) + 10(\text{720p}) - 50(\text{dash}) - 500(\text{thumbnail})$$
+`page_interceptor.js` patches `window.fetch` and `window.XMLHttpRequest` in the page context to monitor background Voyager API calls (`/voyager/api/`). Captured media URLs are sanitized and posted to the content script.
 
-### 4.4 Content Script & Cross-World Messaging
-Because the MAIN world interceptor and the Content Script live in different execution contexts, communication is handled via bi-directional asynchronous `window.postMessage` channels with unique random transaction IDs (`magic_get_react_url` ➔ `magic_response_react_url_${id}`) with a 350ms safety timeout fallback.
-
-### 4.5 Overlay Manager & Collision Resolution Engine
-Rather than altering LinkedIn's fragile layout by appending child elements inside `<video>` wrappers, `OverlayManager` appends all UI elements to `document.body` with `position: fixed` and `z-index: 2147483646`.
-
-Key features:
-- **`ResizeObserver`**: Instantly tracks changes in media dimensions and viewport scaling.
-- **`IntersectionObserver`**: Deactivates overlays for off-screen media (threshold: 15%).
-- **Collision Avoidance (`cornerHasConflict`)**: Detects native LinkedIn interactive controls (Like, Comment, Share, Reactions) and automatically shifts buttons to alternative corners (`top-left` ➔ `top-right` ➔ `bottom-right`).
-
-### 4.6 Modal Isolation & Zero-Bleed Backdrop Engine
-On LinkedIn, clicking media or images can open `.artdeco-modal` or `[role="dialog"]` modals over the existing feed content.
-
-**The Zero-Bleed Solution:**
-1. A real-time `MutationObserver` on `document.body` monitors modal creation/removal (watching `role`, `aria-modal`, and `class` attribute changes).
-2. When a modal opens (`hasActiveModal() === true`), all background overlays outside the modal are immediately forced to `display: none; visibility: hidden; pointer-events: none;`.
-3. Pointer hit testing (`document.elementsFromPoint`) verifies that cursor coordinates directly intersect with the active modal media before allowing any overlay to display.
-
-### 4.7 LinkedIn CDN URL Upgrading
-LinkedIn serves images at multiple resolutions through their CDN (`media.licdn.com/dms/image`). The URL contains resolution parameters like `/100/`, `/200/`, `/400/`, `/800/`.
-
-Toystaller's `upgradeImageUrl()` function automatically rewrites these to `/1000/` to request the highest available resolution:
+### 4.4 Anti-Redirect In-Browser HTML5 Player (The 302 Bypass Trick)
+When a user opens a raw CDN link in a tab, the browser issues a top-level document navigation (`Sec-Fetch-Dest: document`), which CDNs reject with an HTTP 302 redirect. Toystaller routes video URLs to an internal player page:
 ```javascript
-upgradeImageUrl(url) {
-    if (url && url.includes('media.licdn.com/dms/image')) {
-        return url.replace(/\/(100|200|400|800)\//g, '/1000/');
-    }
-    return url;
-}
+const playerUrl = chrome.runtime.getURL('player.html') + '?url=' + encodeURIComponent(videoUrl);
+chrome.tabs.create({ url: playerUrl });
 ```
+Inside `player.html`, the media request originates from an HTML `<video>` element (`Sec-Fetch-Dest: video; Sec-Fetch-Mode: no-cors`), which CDNs accept and serve with full audio and video.
 
-### 4.8 Background Service Worker & Download Pipeline
-The background service worker (`background_core.js`) provides three core services:
-1. **Network Monitoring**: `chrome.webRequest.onResponseStarted` tracks all video and image URLs loaded by the tab for fallback URL resolution.
-2. **New Tab Opening**: `chrome.tabs.create()` opens high-quality media in a clean new browser tab.
-3. **Download Pipeline**: `chrome.downloads.download()` with `saveAs: true` for cases where direct download is required.
+### 4.5 DeclarativeNetRequest & Header Injection
+In `rules.json`, rules rewrite outgoing requests to `licdn.com` and `linkedin.com` to include official `Referer: https://www.linkedin.com/` and `Origin: https://www.linkedin.com` headers, defeating CDN referrer validation.
+
+### 4.6 Overlay Manager & Corner-Locking Stability Engine
+- **Corner-Locking Engine**: Once an optimal corner (`top-left` or `top-right`) is selected for a media element, it is **permanently locked**. The button never dynamically jumps down to `bottom-right` or alternates corners while scrolling.
+- **Sticky Header Handling**: As media scrolls under LinkedIn's fixed navbar (`#global-nav`), the overlay gracefully hides (`top < topNavHeight + 4`). It never clamps or slides along the navbar.
+- **Per-Section Toggles**: Supported via `popup.html` and `popup.js`, allowing users to toggle overlays individually for Feed Posts, Articles, Profiles, and Messaging.
+
+### 4.7 Modal Isolation & Zero-Bleed Backdrop Engine
+LinkedIn opens posts and articles in modal dialogs (`.artdeco-modal`, `[role="dialog"]`). A `MutationObserver` instantly detects when a dialog opens, hiding overlays on background feed media so buttons only appear on the active modal.
+
+### 4.8 LinkedIn CDN URL Upgrading
+Image URLs from `media.licdn.com/dms/image` contain resolution tokens (`/100/`, `/200/`, `/400/`, `/800/`). Toystaller automatically upgrades these to `/1000/` for maximum clarity.
+
+### 4.9 Background Service Worker & Download Pipeline
+`background_script.js` handles file saving through `chrome.downloads.download({ url, filename, saveAs: true })` and routes media tabs cleanly.
 
 ---
 
@@ -203,6 +170,7 @@ graph TD
     URL[Current LinkedIn URL] --> Route{Context Classifier}
     Route -->|hasActiveModal| Modal[Modal Post Handler]
     Route -->|/feed/| Feed[Feed Handler]
+    Route -->|/pulse/| Articles[Articles Handler]
     Route -->|/in/username/| Profile[Profile Handler]
     Route -->|/messaging/| Messaging[Messaging Handler]
     Route -->|Default| General[General LinkedIn Handler]
@@ -212,6 +180,7 @@ graph TD
 | :--- | :--- | :--- | :--- |
 | **Modal Dialog** | `.artdeco-modal, [role="dialog"]` (size > 400×400) | Modal-contained media only | Rejects all background feed items |
 | **Feed** | `/feed/` | Post images (`naturalW ≥ 200`), native videos | Rejects circular profile pictures (`border-radius: 50%`), icons `< 100px` |
+| **Articles** | `/pulse/`, `/article/` | Embedded images, slides, video streams | Filters out author thumbnails and nav icons |
 | **Profile** | `/in/<username>/` | Profile photo, banner, shared media | Rejects small UI icons and connection avatars |
 | **Messaging** | `/messaging/` | Chat media attachments | Rejects conversation participant avatars |
 | **General** | Any other LinkedIn page | Images ≥ 200×200, all video elements | Rejects thumbnails `< 100px`, circular avatars |
@@ -230,7 +199,7 @@ graph TD
 
 1. **Zero External Communication**: The extension never makes network calls to external analytical, tracking, or proxy servers. All requests remain within `linkedin.com` and `licdn.com`.
 2. **Read-Only Inspection**: React Fiber states and Voyager API responses are read in memory without modifying client-side session tokens, cookies, or account credentials.
-3. **Shadow DOM Isolation**: The dashboard UI is rendered inside a closed-mode `ShadowRoot`, completely immune to host page CSS pollution.
+3. **Shadow DOM Isolation**: The dashboard UI is rendered inside an isolated `ShadowRoot`, completely immune to host page CSS pollution.
 
 ---
 
@@ -239,6 +208,7 @@ graph TD
 | Feature / Metric | Toystaller for LinkedIn | Generic Web Scraper / Web Tools | DOM Video Scraping Extensions |
 | :--- | :--- | :--- | :--- |
 | **Video Quality** | **Progressive MP4 / Highest Bitrate** | Often capped at low quality | Capped at compressed blob preview |
+| **In-Browser Player** | **Built-in Dark HTML5 Player (302 Bypass)** | None (redirect loops) | None |
 | **Image Resolution** | **Maximum CDN Resolution (auto-upgraded)** | Compressed JPEG | Screen-size cropped preview |
 | **Account Safety** | **100% Safe (Local client-side)** | High risk (Requires login/cookies) | Safe |
 | **Speed** | **Instant (0 ms network overhead)** | Slow (Server processing time) | Instant |

@@ -87,7 +87,8 @@ function isRawMediaTab() {
 
 function getActivePlatform() {
     return window.ToystallerActivePlatform || (window.ToystallerPlatforms && window.ToystallerPlatforms['linkedin']) || {
-        name: 'fallback',
+        name: 'LinkedIn',
+        version: 'v1.0',
         hasActiveModal() { return false; },
         isInsideModal() { return false; },
         isThumbnail() { return false; },
@@ -179,10 +180,10 @@ function injectDownloadButtons() {
                     return finalUrl;
                 };
 
-                // Blue Button: Open Video/Image in new tab (best quality)
+                // Blue Button: Open Video (in Anti-Redirect Player) or Image in new tab
                 const openBtn = document.createElement('button');
                 openBtn.className = 'magic-open-btn';
-                openBtn.title = isVideo ? 'Open video in new tab' : 'Open image in new tab';
+                openBtn.title = isVideo ? 'Open video in player' : 'Open image in new tab';
                 openBtn.innerHTML = `<svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
                 openBtn.style.cssText = makeBtnStyle('rgba(30,30,30,0.75)');
 
@@ -192,7 +193,7 @@ function injectDownloadButtons() {
 
                 openBtn.addEventListener('mouseenter', () => {
                     openBtn.style.opacity = '1';
-                    openBtn.style.backgroundColor = 'rgba(52, 152, 219, 0.95)';
+                    openBtn.style.backgroundColor = 'rgba(10, 102, 194, 0.95)';
                 });
                 openBtn.addEventListener('mouseleave', () => {
                     openBtn.style.opacity = '0.55';
@@ -212,9 +213,9 @@ function injectDownloadButtons() {
                             window.removeEventListener('message', handler);
                             if (ev.data.url) {
                                 const finalUrl = platform.upgradeImageUrl ? platform.upgradeImageUrl(ev.data.url) : ev.data.url;
-                                safeSendMessage({ action: 'openInNewTab', url: finalUrl });
+                                safeSendMessage({ action: 'openInNewTab', url: finalUrl, isVideo: false });
                             } else {
-                                safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl() });
+                                safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl(), isVideo: false });
                             }
                         };
                         window.addEventListener('message', handler);
@@ -223,12 +224,12 @@ function injectDownloadButtons() {
                             if (resolved) return;
                             resolved = true;
                             window.removeEventListener('message', handler);
-                            safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl() });
+                            safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl(), isVideo: false });
                         }, 250);
                     } else {
-                        // Video: resolve best URL and open in new tab
+                        // Video: resolve best URL and open in new tab (routed to player)
                         getMediaUrl((url) => {
-                            safeSendMessage({ action: 'openInNewTab', url: url });
+                            safeSendMessage({ action: 'openInNewTab', url: url, isVideo: true });
                         });
                     }
                 });
@@ -266,11 +267,11 @@ function injectDownloadButtons() {
                             }
                         }
 
-                        // Fallback 2: Platform-specific thumbnail extraction (LinkedIn videocover)
+                        // Fallback 2: Platform-specific thumbnail extraction
                         if (!poster && platform.extractThumbnail) {
                             platform.extractThumbnail(media, pageInterceptedVideoUrls, safeSendMessage, (url) => {
                                 if (url) {
-                                    safeSendMessage({ action: 'openInNewTab', url: url });
+                                    safeSendMessage({ action: 'openInNewTab', url: url, isVideo: false });
                                 } else {
                                     alert('No thumbnail image available for this video.');
                                 }
@@ -289,7 +290,7 @@ function injectDownloadButtons() {
                                 resolved = true;
                                 window.removeEventListener('message', handler);
                                 if (ev.data.url) {
-                                    safeSendMessage({ action: 'openInNewTab', url: ev.data.url });
+                                    safeSendMessage({ action: 'openInNewTab', url: ev.data.url, isVideo: false });
                                 } else {
                                     alert('No thumbnail image available for this video.');
                                 }
@@ -307,12 +308,12 @@ function injectDownloadButtons() {
                         }
 
                         if (poster) {
-                            safeSendMessage({ action: 'openInNewTab', url: poster });
+                            safeSendMessage({ action: 'openInNewTab', url: poster, isVideo: false });
                         } else {
                             alert('No thumbnail image available for this video.');
                         }
                     } else {
-                        safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl() });
+                        safeSendMessage({ action: 'openInNewTab', url: getHighResImageUrl(), isVideo: false });
                     }
                 });
                 buttons.push(imgBtn);
@@ -375,98 +376,88 @@ function injectDownloadButtons() {
                     }
                 }
 
-                const getFilename = (urlStr) => {
-                    try {
-                        const parts = new URL(urlStr).pathname.split('/');
-                        const name = parts.pop();
-                        return (name && name.length > 5) ? name : null;
-                    } catch (e) { return null; }
-                };
-
-                const currentFilename = getFilename(currentSrc);
-
-                if (isVideo && pageInterceptedVideoUrls.size > 0 && currentFilename) {
-                    const matches = Array.from(pageInterceptedVideoUrls).filter(u => {
-                        const interceptedName = getFilename(u);
-                        return interceptedName && interceptedName === currentFilename && !u.includes('bytestart');
-                    });
-
-                    if (matches.length > 0) {
-                        const best = pickBestVideoUrl(matches);
-                        if (best) {
-                            callback(best);
-                            return;
-                        }
-                    }
-                }
-
-                if (isVideo && media.currentSrc &&
-                    !media.currentSrc.startsWith('blob:') &&
-                    !media.currentSrc.startsWith('data:') &&
-                    !(platform.isInternalUrl && platform.isInternalUrl(media.currentSrc))) {
-                    callback(media.currentSrc);
+                if (currentSrc && !isBlobSource && (!platform.isInternalUrl || !platform.isInternalUrl(currentSrc))) {
+                    callback(currentSrc);
                     return;
                 }
 
-                if (media.src && !media.src.startsWith('blob:') && !media.src.startsWith('data:') &&
-                    !(platform.isInternalUrl && platform.isInternalUrl(media.src))) {
-                    callback(media.src);
-                    return;
-                }
-
-                if (isVideo) {
-                    const sourceTag = media.querySelector('source');
-                    if (sourceTag && sourceTag.src &&
-                        !sourceTag.src.startsWith('blob:') &&
-                        !sourceTag.src.startsWith('data:') &&
-                        !(platform.isInternalUrl && platform.isInternalUrl(sourceTag.src))) {
-                        callback(sourceTag.src);
+                const sources = media.querySelectorAll('source');
+                for (let source of sources) {
+                    const src = source.src;
+                    if (src && !src.startsWith('blob:') && !src.startsWith('data:') && (!platform.isInternalUrl || !platform.isInternalUrl(src))) {
+                        callback(src);
                         return;
                     }
                 }
 
-                const mediaType = isVideo ? 'video' : 'img';
-                safeSendMessage({ action: 'getMediaUrls', mediaType: mediaType }, (response) => {
-                    if (response && response.urls && response.urls.length > 0) {
-                        let candidates = response.urls;
-                        const filtered = platform.filterBackgroundUrls(candidates, isVideo);
-                        if (filtered && filtered.length > 0) candidates = filtered;
-
-                        const best = pickBestVideoUrl(candidates);
-                        if (best) {
-                            callback(best);
+                if (isVideo) {
+                    if (platform.extractVideoUrlFromDOM) {
+                        const domUrl = platform.extractVideoUrlFromDOM(media);
+                        if (domUrl) {
+                            callback(domUrl);
                             return;
                         }
                     }
-                    if (!silent) {
-                        alert('Could not find the video URL yet.\n\nTip: Make sure the video has started playing, then click the button again.');
-                    }
-                });
-            };
 
-            if (window.magicOverlayManager) {
-                window.magicOverlayManager.addOverlay(media, createButtonsFn);
-                if (isVideo) {
-                    setTimeout(() => {
-                        const overlay = window.magicOverlayManager.overlays.get(media);
-                        if (overlay && overlay.container) {
-                            const openBtn = overlay.container.querySelector('.magic-open-btn');
-                            if (openBtn) {
-                                preResolveVideoUrl(openBtn);
+                    safeSendMessage({ action: 'getMediaUrls', mediaType: 'video' }, (response) => {
+                        if (response && response.urls && response.urls.length > 0) {
+                            const platformVideos = platform.filterBackgroundUrls ? platform.filterBackgroundUrls(response.urls, true) : response.urls;
+                            const best = pickBestVideoUrl(platformVideos);
+                            if (best) {
+                                callback(best);
+                                return;
                             }
                         }
-                    }, 100);
+
+                        if (currentSrc && !isBlobSource) {
+                            callback(currentSrc);
+                            return;
+                        }
+
+                        if (!silent) {
+                            alert('Could not find video URL. The video may still be buffering or use an unsupported streaming format.');
+                        }
+                    });
+                    return;
+                }
+
+                const fallbackUrl = media.currentSrc || media.src;
+                if (fallbackUrl && (!platform.isInternalUrl || !platform.isInternalUrl(fallbackUrl))) {
+                    callback(fallbackUrl);
+                } else if (!silent) {
+                    alert('Could not find a valid media URL to open.');
+                }
+            };
+
+            window.magicOverlayManager.addOverlay(media, createButtonsFn);
+
+            if (isVideo) {
+                const entry = window.magicOverlayManager.overlays.get(media);
+                if (entry && entry.container) {
+                    const openBtn = entry.container.querySelector('.magic-open-btn');
+                    if (openBtn) {
+                        preResolveVideoUrl(openBtn);
+
+                        if (!openBtn.__resolvedVideoUrl) {
+                            const onCanPlay = () => {
+                                preResolveVideoUrl(openBtn);
+                                media.removeEventListener('canplay', onCanPlay);
+                                media.removeEventListener('playing', onCanPlay);
+                            };
+                            media.addEventListener('canplay', onCanPlay);
+                            media.addEventListener('playing', onCanPlay);
+                        }
+                    }
                 }
             }
         }
     });
 }
 
-let injectTimer = null;
+let injectDebounce = null;
 function scheduleInject() {
-    if (injectTimer) return;
-    injectTimer = setTimeout(() => {
-        injectTimer = null;
+    clearTimeout(injectDebounce);
+    injectDebounce = setTimeout(() => {
         injectDownloadButtons();
     }, 150);
 }
@@ -566,7 +557,7 @@ function toggleDashboardOverlay() {
                 margin: 0;
                 font-size: 18px;
                 font-weight: 600;
-                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                background: linear-gradient(135deg, #0a66c2 0%, #70b5f9 100%);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
             }
@@ -600,13 +591,13 @@ function toggleDashboardOverlay() {
                 font-size: 12px;
                 line-height: 1.5;
                 color: #ddd;
-                border-left: 3px solid #4facfe;
+                border-left: 3px solid #0a66c2;
             }
         </style>
 
         <div class="dashboard">
             <div class="header">
-                <h2>Toystaller ${platform.version || 'v6.0'} — ${platform.name || 'LinkedIn'}</h2>
+                <h2>Toystaller ${platform.version || 'v1.0'} — ${platform.name || 'LinkedIn'}</h2>
                 <button class="close-btn" id="closeBtn" title="Close">&times;</button>
             </div>
             <div class="info-row">

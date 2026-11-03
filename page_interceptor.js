@@ -1,14 +1,14 @@
-// core/interceptor_core.js
+// page_interceptor.js
 // Runs in the MAIN page world. Intercepts fetch/XHR for CDN video URLs
 // and exposes a React Fiber extractor for accurate per-video URL lookup.
-// Platform-specific behavior is delegated to window.ToystallerPlatform (singular).
+// Platform-specific behavior is delegated to window.ToystallerPlatform.
 
 (function () {
     'use strict';
     if (window.__toystallerInterceptorLoaded) return;
     window.__toystallerInterceptorLoaded = true;
 
-    // The active platform object — set by the platform's interceptor.js before this file loads.
+    // The active platform object — set by platform.js before this file loads.
     // Falls back to a no-op generic if not set.
     const getPlatform = () => {
         return window.ToystallerPlatform || {

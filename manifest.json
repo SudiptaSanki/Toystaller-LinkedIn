@@ -1,0 +1,65 @@
+{
+  "manifest_version": 3,
+  "name": "Toystaller: LinkedIn Edition",
+  "version": "1.0",
+  "description": "Specialized HD media extractor for LinkedIn — Feed, Profiles, Articles, Modals, and Messaging with Anti-Redirect HTML5 Player.",
+  "icons": {
+    "16": "Toystaller_logo.png",
+    "48": "Toystaller_logo.png",
+    "128": "Toystaller_logo.png"
+  },
+  "permissions": [
+    "webRequest",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "activeTab",
+    "scripting",
+    "downloads",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.linkedin.com/*",
+    "*://*.licdn.com/*"
+  ],
+  "background": {
+    "service_worker": "background_script.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.linkedin.com/*"],
+      "js": [
+        "platforms/linkedin.js",
+        "overlay_manager.js",
+        "core/content_core.js",
+        "content_script.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "page_interceptor.js",
+        "platforms/linkedin.js",
+        "player.html",
+        "player.js"
+      ],
+      "matches": ["*://*.linkedin.com/*"]
+    }
+  ],
+  "action": {
+    "default_title": "Toystaller: LinkedIn Edition",
+    "default_icon": "Toystaller_logo.png",
+    "default_popup": "popup.html"
+  }
+}

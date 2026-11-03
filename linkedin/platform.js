@@ -1,23 +1,25 @@
-// extensions/linkedin/platform.js
+// platform.js
 // LinkedIn platform configuration — sets window.ToystallerActivePlatform (content world)
 // and window.ToystallerPlatform (MAIN world for interceptor).
 
 (function() {
     const linkedinPlatform = {
         name: 'LinkedIn',
-        version: 'v6.0',
-        specialization: 'High-res image and direct video downloads for LinkedIn Feed and Profiles. Bypasses LinkedIn CDN 403 errors using Chrome Downloads API.',
+        version: 'v1.0',
+        specialization: 'Specialized HD media extractor for LinkedIn — Feed, Profiles, Articles, Modals, and Messaging with Anti-Redirect HTML5 Player.',
 
         // --- Content Script Interface ---
 
-        getPlatformConfig(path) {
-            return { preferredCorners: ['top-left', 'top-right', 'bottom-right'], padding: 12 };
+        getPlatformConfig(path, media) {
+            return { preferredCorners: ['top-left', 'top-right', 'bottom-right'], padding: 12, topOffset: 4 };
         },
 
         getContext(path) {
-            if (path.includes('/feed/')) return 'li-feed';
-            if (path.includes('/messaging/')) return 'li-messaging';
-            if (path.includes('/in/')) return 'li-profile';
+            const p = (path || window.location.pathname || '').toLowerCase();
+            if (p.includes('/feed/')) return 'li-feed';
+            if (p.includes('/pulse/') || p.includes('/article/')) return 'li-articles';
+            if (p.includes('/messaging/')) return 'li-messaging';
+            if (p.includes('/in/')) return 'li-profile';
             return 'linkedin';
         },
 
@@ -50,7 +52,7 @@
             if (rect.width < 100 || rect.height < 100) return true;
             // LinkedIn profile pics and small icons
             const style = window.getComputedStyle(media);
-            if (style.borderRadius && (style.borderRadius.includes('50%') || parseInt(style.borderRadius) > 40)) return true;
+            if (style.borderRadius && (style.borderRadius.includes('50%') || parseInt(style.borderRadius, 10) > 40)) return true;
             return false;
         },
 
@@ -62,7 +64,7 @@
             return 1;
         },
 
-        // Open video in new tab for best quality viewing
+        // Open video in new tab routed to dedicated Anti-Redirect HTML5 Player
         useDirectDownload: false,
 
         // LinkedIn doesn't reliably use React Fiber for thumbnails
