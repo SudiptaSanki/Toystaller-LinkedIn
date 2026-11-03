@@ -212,5 +212,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 ---
 
 <!-- autobot:start -->
-<!-- s:834ddb9c t:2026-11-03T14:59:38.823Z a:monitoring setup b:6117 -->
+<!-- s:6ce6c719 t:2026-11-03T14:59:49.837Z a:fixed edge case b:3299 -->
 <!-- autobot:end -->
