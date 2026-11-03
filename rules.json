@@ -19,30 +19,13 @@
     },
     "condition": {
       "urlFilter": "||licdn.com",
-      "resourceTypes": ["main_frame", "sub_frame", "media", "xmlhttprequest", "other"]
-    }
-  },
-  {
-    "id": 2,
-    "priority": 1,
-    "action": {
-      "type": "modifyHeaders",
-      "requestHeaders": [
-        {
-          "header": "Referer",
-          "operation": "set",
-          "value": "https://www.linkedin.com/"
-        },
-        {
-          "header": "Origin",
-          "operation": "set",
-          "value": "https://www.linkedin.com"
-        }
+      "resourceTypes": [
+        "main_frame",
+        "sub_frame",
+        "media",
+        "xmlhttprequest",
+        "other"
       ]
-    },
-    "condition": {
-      "urlFilter": "||linkedin.com",
-      "resourceTypes": ["main_frame", "sub_frame", "media", "xmlhttprequest", "other"]
     }
   }
 ]

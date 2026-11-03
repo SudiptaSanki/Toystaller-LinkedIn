@@ -33,7 +33,7 @@ chrome.webRequest.onResponseStarted.addListener(
             if (!interceptedMedia[tabId]) {
                 interceptedMedia[tabId] = { video: new Set(), img: new Set() };
             }
-            if (isVideo) {
+            if (isVideo && !lowerUrl.includes('/audio') && !lowerUrl.includes('.mpd') && !lowerUrl.includes('.m3u8') && !lowerUrl.includes('manifest')) {
                 let clean = url.replace(/\\\//g, '/')
                                .replace(/&amp;/g, '&')
                                .replace(/\\u0026/g, '&')

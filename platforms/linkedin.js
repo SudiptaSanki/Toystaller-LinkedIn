@@ -116,7 +116,7 @@
                 if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash') || lower.includes('bytestart') || lower.includes('/audio') || lower.includes('manifest')) {
                     return false;
                 }
-                return (lower.includes('licdn.com') && (lower.includes('video') || lower.includes('playback') || lower.includes('progressive'))) || lower.includes('.mp4');
+                return (lower.includes('licdn.com') && (lower.includes('playlist/vid') || lower.includes('video') || lower.includes('playback') || lower.includes('progressive'))) || lower.includes('.mp4');
             });
         },
 
@@ -166,7 +166,7 @@
                 return true;
             }
 
-            return lowerVal.includes('licdn.com') && (lowerVal.includes('video') || lowerVal.includes('playback') || lowerVal.includes('progressive'));
+            return lowerVal.includes('licdn.com') && (lowerVal.includes('playlist/vid') || lowerVal.includes('video') || lowerVal.includes('playback') || lowerVal.includes('progressive'));
         },
 
         extractPriorityReactUrl(val, isVideoContext) {
@@ -219,7 +219,7 @@
         isValidVideo(url) {
             if (!url || typeof url !== 'string' || !url.startsWith('http')) return false;
             const lower = url.toLowerCase();
-            if (lower.includes('stream_type=dash') || lower.includes('.mpd') || lower.includes('.m3u8') || lower.includes('manifest')) return false;
+            if (lower.includes('.mpd') || lower.includes('.m3u8') || lower.includes('manifest')) return false;
             if (lower.includes('/audio') || lower.includes('bytestart')) return false;
             return !(lower.includes('//www.linkedin.com') || lower.includes('//linkedin.com'));
         },
