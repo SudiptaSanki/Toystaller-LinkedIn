@@ -36,9 +36,9 @@ function scoreVideoUrl(url) {
     let score = 0;
     const lower = url.toLowerCase();
     if (lower.includes('/audio') || lower.includes('audio')) score -= 1000;
-    if (lower.includes('.mp4') || lower.includes('.m4v')) score += 10;
-    if (lower.includes('playlist/vid')) score += 20;
-    if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('/manifest/') || lower.includes('stream_type=dash')) score -= 50;
+    if (lower.includes('.mp4') || lower.includes('.m4v')) score += 50; // Progressive MP4 preferred
+    if (lower.includes('playlist/vid')) score += 20; // HLS / playlist stream
+    if (lower.includes('.mpd') || lower.includes('/manifest/') || lower.includes('stream_type=dash')) score -= 50;
     if (lower.includes('bytestart') || lower.includes('byteend')) score -= 50;
 
     if (lower.includes('1080')) score += 20;

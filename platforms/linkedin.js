@@ -243,23 +243,36 @@
                 try {
                     const sources = typeof sourcesData === 'string' ? JSON.parse(sourcesData) : sourcesData;
                     if (Array.isArray(sources)) {
-                        let best = null;
-                        let bestBitrate = -1;
+                        let bestMp4 = null;
+                        let bestMp4Bitrate = -1;
+                        let bestHls = null;
+                        let bestHlsBitrate = -1;
+
                         for (const src of sources) {
                             if (!src) continue;
                             const srcUrl = src.src || src.url || src.streamingLocation;
                             if (srcUrl && typeof srcUrl === 'string' && this.isValidVideo(srcUrl)) {
-                                if (srcUrl.includes('manifest') || srcUrl.includes('.mpd') || srcUrl.includes('.m3u8')) continue;
-                                if (src.type && (src.type.includes('mpegurl') || src.type.includes('dash'))) continue;
+                                if (srcUrl.includes('manifest') || srcUrl.includes('.mpd') || srcUrl.includes('/audio')) continue;
+                                if (src.type && src.type.includes('dash')) continue;
 
+                                const isMp4 = (src.type && src.type.includes('mp4')) || srcUrl.includes('.mp4');
                                 const bitrate = parseInt(src['data-bitrate'] || src.bitRate || src.bitrate || '0', 10);
-                                if (bitrate > bestBitrate || !best) {
-                                    bestBitrate = bitrate;
-                                    best = srcUrl;
+
+                                if (isMp4) {
+                                    if (bitrate > bestMp4Bitrate || !bestMp4) {
+                                        bestMp4Bitrate = bitrate;
+                                        bestMp4 = srcUrl;
+                                    }
+                                } else {
+                                    if (bitrate > bestHlsBitrate || !bestHls) {
+                                        bestHlsBitrate = bitrate;
+                                        bestHls = srcUrl;
+                                    }
                                 }
                             }
                         }
-                        if (best) return best.split('#')[0];
+                        const chosen = bestMp4 || bestHls;
+                        if (chosen) return chosen.split('#')[0];
                     }
                 } catch (e) {}
             }

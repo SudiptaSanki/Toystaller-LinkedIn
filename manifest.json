@@ -51,7 +51,8 @@
         "page_interceptor.js",
         "platforms/linkedin.js",
         "player.html",
-        "player.js"
+        "player.js",
+        "hls.min.js"
       ],
       "matches": ["*://*.linkedin.com/*"]
     }
