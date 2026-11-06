@@ -237,5 +237,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 - Open an Issue or Pull Request on [GitHub Issues](https://github.com/SudiptaSanki/Toystaller-LinkedIn/issues).
 
 <!-- autobot:start -->
-<!-- s:c18d1a27 t:2026-11-05T18:01:25.782Z a:planning sprint b:1321 -->
+<!-- s:313d81c5 t:2026-11-06T16:20:10.513Z a:schema migration b:4883 -->
 <!-- autobot:end -->
