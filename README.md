@@ -237,5 +237,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 - Open an Issue or Pull Request on [GitHub Issues](https://github.com/SudiptaSanki/Toystaller-LinkedIn/issues).
 
 <!-- autobot:start -->
-<!-- s:db724346 t:2026-11-11T16:39:47.436Z a:feature planning b:886 -->
+<!-- s:92a13d44 t:2026-11-11T16:39:57.176Z a:fixed edge case b:1467 -->
 <!-- autobot:end -->
