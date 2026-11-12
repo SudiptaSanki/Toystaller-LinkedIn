@@ -3,6 +3,21 @@
 // and window.ToystallerPlatform (MAIN world for interceptor).
 
 (function() {
+    function computeStreamScore(srcUrl, type, bitrate, height) {
+        let score = parseInt(bitrate || '0', 10);
+        const lower = (srcUrl || '').toLowerCase();
+        const h = parseInt(height || '0', 10);
+
+        if (lower.includes('1080') || h >= 1080) score += 4000000;
+        else if (lower.includes('720') || h >= 720) score += 2000000;
+        else if (lower.includes('480') || h >= 480) score += 800000;
+        else if (lower.includes('360') || h >= 360) score += 300000;
+
+        const isMp4 = (type && type.includes('mp4')) || lower.includes('.mp4');
+        if (isMp4 && score >= 1500000) score += 500000; // Prefer high-res progressive MP4
+        return score;
+    }
+
     const linkedinPlatform = {
         name: 'LinkedIn',
         version: 'v1.0',
@@ -24,7 +39,6 @@
         },
 
         hasActiveModal() {
-            // LinkedIn uses .artdeco-modal for actual modals
             const modals = document.querySelectorAll('.artdeco-modal, [role="dialog"]');
             for (const modal of modals) {
                 const rect = modal.getBoundingClientRect();
@@ -50,7 +64,6 @@
             if (naturalW >= 200 && naturalH >= 200) return false;
             if (naturalW < 100 || naturalH < 100) return true;
             if (rect.width < 100 || rect.height < 100) return true;
-            // LinkedIn profile pics and small icons
             const style = window.getComputedStyle(media);
             if (style.borderRadius && (style.borderRadius.includes('50%') || parseInt(style.borderRadius, 10) > 40)) return true;
             return false;
@@ -64,10 +77,7 @@
             return 1;
         },
 
-        // Open video in new tab routed to dedicated Anti-Redirect HTML5 Player
         useDirectDownload: false,
-
-        // LinkedIn doesn't reliably use React Fiber for thumbnails
         useReactThumbnail: false,
 
         isInternalUrl(url) {
@@ -75,7 +85,6 @@
             return lower.includes('//www.linkedin.com') || lower.includes('//linkedin.com');
         },
 
-        // LinkedIn image URL upgrading — force highest resolution
         upgradeImageUrl(url) {
             if (url && url.includes('media.licdn.com/dms/image')) {
                 return url.replace(/\/(100|200|400|800)\//g, '/1000/');
@@ -83,9 +92,7 @@
             return url;
         },
 
-        // LinkedIn video thumbnail extraction
         extractThumbnail(media, interceptedUrls, safeSendMessage, callback) {
-            // Check intercepted URLs for video covers
             if (interceptedUrls.size > 0) {
                 const covers = Array.from(interceptedUrls).filter(u => u.includes('videocover'));
                 if (covers.length > 0) {
@@ -94,7 +101,6 @@
                 }
             }
 
-            // Ask background script for network-intercepted images
             safeSendMessage({ action: 'getMediaUrls', mediaType: 'img' }, (response) => {
                 if (response && response.urls && response.urls.length > 0) {
                     const covers = response.urls.filter(u => u.includes('videocover'));
@@ -151,17 +157,14 @@
             const lowerVal = val.toLowerCase();
             const lowerKey = (key || '').toLowerCase();
 
-            // Explicitly reject images and video covers
             if (lowerVal.includes('/image/') || lowerVal.includes('videocover') || lowerVal.includes('.jpg') || lowerVal.includes('.png') || lowerVal.includes('.webp') || lowerVal.includes('.heic')) {
                 return false;
             }
 
-            // Reject DASH manifests, audio tracks, and segment chunks
             if (lowerVal.includes('.mpd') || lowerVal.includes('stream_type=dash') || lowerVal.includes('/manifest') || lowerVal.includes('bytestart') || lowerVal.includes('/audio') || lowerKey.includes('audio')) {
                 return false;
             }
 
-            // Must be an MP4 or progressive video stream from licdn
             if (lowerVal.includes('.mp4') || lowerVal.includes('.m4v')) {
                 return true;
             }
@@ -172,7 +175,7 @@
         extractPriorityReactUrl(val, isVideoContext) {
             if (!val || typeof val !== 'object') return null;
 
-            // 1. LinkedIn Voyager VideoPlayMetadata: progressiveStreams array
+            // 1. LinkedIn Voyager VideoPlayMetadata: progressiveStreams array (sort for highest quality)
             if (Array.isArray(val.progressiveStreams) && val.progressiveStreams.length > 0) {
                 let bestStream = null;
                 let bestScore = -1;
@@ -183,10 +186,7 @@
                     if (streamUrl.includes('manifest') || streamUrl.includes('.mpd') || streamUrl.includes('/audio')) continue;
 
                     streamUrl = streamUrl.replace(/&amp;/g, '&').replace(/\\u0026/g, '&');
-                    const bitrate = parseInt(stream.bitRate || stream.bitrate || '0', 10);
-                    const height = parseInt(stream.height || '0', 10);
-                    const size = parseInt(stream.size || '0', 10);
-                    const score = bitrate > 0 ? bitrate : (height * 1000 + size);
+                    const score = computeStreamScore(streamUrl, stream.mediaType, stream.bitRate || stream.bitrate, stream.height);
                     if (score > bestScore) {
                         bestScore = score;
                         bestStream = streamUrl;
@@ -195,14 +195,27 @@
                 if (bestStream) return bestStream.split('#')[0];
             }
 
-            // 2. Direct progressive stream object with streamingLocation
+            // 2. Adaptive HLS streams for long recordings & live events if progressive is unavailable
+            if (Array.isArray(val.adaptiveStreams) && val.adaptiveStreams.length > 0) {
+                for (const stream of val.adaptiveStreams) {
+                    if (!stream) continue;
+                    let streamUrl = stream.streamingLocation || stream.url || stream.src;
+                    if (streamUrl && typeof streamUrl === 'string' && streamUrl.startsWith('http')) {
+                        if (!streamUrl.includes('.mpd') && !streamUrl.includes('dash')) {
+                            return streamUrl.replace(/&amp;/g, '&').replace(/\\u0026/g, '&').split('#')[0];
+                        }
+                    }
+                }
+            }
+
+            // 3. Direct progressive stream object with streamingLocation
             if (typeof val.streamingLocation === 'string' && val.streamingLocation.startsWith('http')) {
                 if (!val.streamingLocation.includes('manifest') && !val.streamingLocation.includes('.mpd')) {
                     return val.streamingLocation.replace(/&amp;/g, '&').split('#')[0];
                 }
             }
 
-            // 3. streamingUrl or progressiveUrl
+            // 4. streamingUrl or progressiveUrl
             if (typeof val.streamingUrl === 'string' && val.streamingUrl.startsWith('http')) {
                 if (!val.streamingUrl.includes('manifest') && !val.streamingUrl.includes('.mpd')) {
                     return val.streamingUrl.replace(/&amp;/g, '&').split('#')[0];
@@ -250,7 +263,7 @@
                 }
             }
 
-            // 2. Parse data-sources if found
+            // 2. Parse data-sources with highest quality prioritization
             if (sourcesData) {
                 try {
                     let raw = sourcesData;
@@ -263,10 +276,8 @@
                         sourcesData = JSON.parse(raw);
                     }
                     if (Array.isArray(sourcesData)) {
-                        let bestMp4 = null;
-                        let bestMp4Bitrate = -1;
-                        let bestHls = null;
-                        let bestHlsBitrate = -1;
+                        let bestCandidate = null;
+                        let bestScore = -1;
 
                         for (const src of sourcesData) {
                             if (!src) continue;
@@ -276,24 +287,17 @@
                                 if (srcUrl.includes('manifest') || srcUrl.includes('.mpd') || srcUrl.includes('/audio')) continue;
                                 if (src.type && src.type.includes('dash')) continue;
 
-                                const isMp4 = (src.type && src.type.includes('mp4')) || srcUrl.includes('.mp4');
                                 const bitrate = parseInt(src['data-bitrate'] || src.bitRate || src.bitrate || '0', 10);
+                                const height = parseInt(src.height || '0', 10);
+                                const score = computeStreamScore(srcUrl, src.type, bitrate, height);
 
-                                if (isMp4) {
-                                    if (bitrate > bestMp4Bitrate || !bestMp4) {
-                                        bestMp4Bitrate = bitrate;
-                                        bestMp4 = srcUrl;
-                                    }
-                                } else {
-                                    if (bitrate > bestHlsBitrate || !bestHls) {
-                                        bestHlsBitrate = bitrate;
-                                        bestHls = srcUrl;
-                                    }
+                                if (score > bestScore || !bestCandidate) {
+                                    bestScore = score;
+                                    bestCandidate = srcUrl;
                                 }
                             }
                         }
-                        const chosen = bestMp4 || bestHls;
-                        if (chosen) return chosen.split('#')[0];
+                        if (bestCandidate) return bestCandidate.split('#')[0];
                     }
                 } catch (e) {}
             }

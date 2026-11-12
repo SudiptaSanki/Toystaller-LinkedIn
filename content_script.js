@@ -242,6 +242,11 @@ function injectDownloadButtons() {
                         openBtn.style.opacity = '1';
                         openBtn.style.backgroundColor = 'rgba(10, 102, 194, 0.95)';
 
+                        // Prompt video load if completely uninitialized
+                        if (media.readyState === 0) {
+                            try { media.load(); } catch (e) {}
+                        }
+
                         getMediaUrl((url) => {
                             openBtn.style.opacity = '0.55';
                             openBtn.style.backgroundColor = 'rgba(30,30,30,0.75)';
@@ -249,7 +254,7 @@ function injectDownloadButtons() {
                                 openBtn.__resolvedVideoUrl = url;
                                 safeSendMessage({ action: 'openInNewTab', url: url, isVideo: true });
                             } else {
-                                alert('Could not resolve video URL. If the video is paused, please click play and try again.');
+                                alert("💡 Toystaller Tip:\nPlease click 'Play' on this LinkedIn video for 1-2 seconds so LinkedIn loads the master HD stream, then click this button again!");
                             }
                         }, false);
                     }

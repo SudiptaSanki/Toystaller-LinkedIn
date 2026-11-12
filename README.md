@@ -60,9 +60,12 @@ Platform CDNs reject top-level document requests to prevent unauthorized scrapin
 Toystaller solves this elegantly without external proxies:
 1. Video URLs are routed through an internal dark-mode extension player tab:
    `chrome-extension://<id>/player.html?url=<encoded_video_url>`
-2. Media loads inside an HTML5 `<video controls autoplay playsinline>` element, which sends genuine media headers (`Sec-Fetch-Dest: video; Sec-Fetch-Mode: no-cors`).
-3. In combination with `rules.json` (`declarativeNetRequest`) injecting official `Referer: https://www.linkedin.com/` and `Origin: https://www.linkedin.com` headers, LinkedIn's CDN returns **HTTP 200 / 206 Partial Content** with complete video and audio.
-4. Includes instant **"Download Video"** and **"Copy Link"** action buttons with real-time video resolution badges.
+2. Media loads inside an HTML5 `<video controls playsinline>` element, which sends genuine media headers (`Sec-Fetch-Dest: video; Sec-Fetch-Mode: no-cors`).
+3. In combination with `rules.json` (`declarativeNetRequest`) injecting official `Referer: https://www.linkedin.com/` headers, LinkedIn's CDN returns **HTTP 200 / 206 Partial Content** with complete video and audio.
+4. **Forced 1080p Master Resolution**: Always selects and locks playback to the highest-bitrate stream available on LinkedIn, with a real-time quality selector.
+5. **High-Speed Concurrent Downloader for Long Videos (1–3 Hours)**: Handles multi-hour webinars and live event replays using parallel segment workers (5x faster) with client-side fMP4 reassembly.
+6. **In-Player Stream Recovery Assistant**: Automatically detects uninitialized or 0:00 streams and guides the user with a 1-click retry.
+7. Includes instant **"Download Video"**, **"Copy Link"**, and **"Pro Tips"** action buttons with real-time video resolution badges.
 
 ---
 

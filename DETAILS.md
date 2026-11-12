@@ -137,15 +137,20 @@ LinkedIn encodes media sources in two distinct locations:
 `page_interceptor.js` patches `window.fetch` and `window.XMLHttpRequest` in the page context to monitor background Voyager API calls (`/voyager/api/`). Captured media URLs are sanitized and posted to the content script.
 
 ### 4.4 Anti-Redirect In-Browser HTML5 Player (The 302 Bypass Trick)
-When a user opens a raw CDN link in a tab, the browser issues a top-level document navigation (`Sec-Fetch-Dest: document`), which CDNs reject with an HTTP 302 redirect. Toystaller routes video URLs to an internal player page:
+When a user opens a raw CDN link in a tab, the browser issues a top-level document navigation (`Sec-Fetch-Dest: document`), which CDNs reject with an HTTP 302 redirect. Toystaller routes video URLs to an internal master player page:
 ```javascript
 const playerUrl = chrome.runtime.getURL('player.html') + '?url=' + encodeURIComponent(videoUrl);
 chrome.tabs.create({ url: playerUrl });
 ```
-Inside `player.html`, the media request originates from an HTML `<video>` element (`Sec-Fetch-Dest: video; Sec-Fetch-Mode: no-cors`), which CDNs accept and serve with full audio and video.
+Inside `player.html`:
+- The media request originates from an HTML `<video>` element (`Sec-Fetch-Dest: video; Sec-Fetch-Mode: no-cors`), which CDNs accept and serve with full audio and video.
+- **Forced 1080p Master Resolution**: Locks HLS and progressive playback to the highest-bitrate stream available.
+- **Concurrent Fragmented MP4 Segment Downloader**: For long multi-hour videos (webinars, live event replays), downloads segments 5-at-a-time concurrently, speeding up downloads up to 500% with client-side fMP4 reassembly.
+- **Stream Recovery Assistant**: Automatically detects uninitialized or 0:00 lazy-loaded streams and guides the user with a 1-click retry.
+- **Interactive Pro Tips Drawer**: Educates users on LinkedIn's adaptive bitrate behavior and best extraction practices.
 
 ### 4.5 DeclarativeNetRequest & Header Injection
-In `rules.json`, rules rewrite outgoing requests to `licdn.com` and `linkedin.com` to include official `Referer: https://www.linkedin.com/` and `Origin: https://www.linkedin.com` headers, defeating CDN referrer validation.
+In `rules.json`, rules rewrite outgoing requests to `licdn.com` to include official `Referer: https://www.linkedin.com/` headers, defeating CDN hotlink protection while avoiding conflicting Origin headers on non-CORS media byte-range requests.
 
 ### 4.6 Overlay Manager & Corner-Locking Stability Engine
 - **Corner-Locking Engine**: Once an optimal corner (`top-left` or `top-right`) is selected for a media element, it is **permanently locked**. The button never dynamically jumps down to `bottom-right` or alternates corners while scrolling.
