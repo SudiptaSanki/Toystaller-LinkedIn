@@ -23,14 +23,17 @@
         return;
     }
 
-    // Strip any fragment identifier so standard media elements can stream directly
-    const videoUrl = rawUrl.split('#')[0];
-    const isHls = videoUrl.includes('/pl/') || videoUrl.includes('.m3u8') || videoUrl.includes('format=m3u8');
+    // Strip any fragment identifier and normalize entities
+    const videoUrl = rawUrl.replace(/&amp;/g, '&').replace(/\\u0026/g, '&').split('#')[0];
+    const isHls = videoUrl.includes('/pl/') || videoUrl.includes('.m3u8') || videoUrl.includes('format=m3u8') || videoUrl.includes('hls-');
 
     let hlsInstance = null;
+    let bufferedBlobUrl = null;
+    let blobAttempted = false;
 
     function initPlayer() {
         if (isHls && window.Hls && Hls.isSupported()) {
+            resText.textContent = 'Loading adaptive HD stream...';
             hlsInstance = new Hls({
                 enableWorker: true,
                 lowLatencyMode: false,
@@ -46,6 +49,9 @@
                     const best = data.levels.reduce((p, c) => (c.height > p.height ? c : p), data.levels[0]);
                     resText.textContent = `${best.width || 'HD'} x ${best.height || '720'} • HD Video`;
                     resText.style.color = '#8a8d91';
+                } else {
+                    resText.textContent = 'HD Video Stream';
+                    resText.style.color = '#8a8d91';
                 }
             });
 
@@ -53,6 +59,7 @@
                 if (hlsInstance.levels && hlsInstance.levels[data.level]) {
                     const l = hlsInstance.levels[data.level];
                     resText.textContent = `${l.width} x ${l.height} • HD Video`;
+                    resText.style.color = '#8a8d91';
                 }
             });
 
@@ -74,9 +81,25 @@
                 }
             });
         } else {
+            // Progressive MP4 stream
+            resText.textContent = 'Connecting to HD stream...';
             player.src = videoUrl;
+            player.load();
+            player.play().catch(() => {
+                // Browser autoplay policy prevented unmuted autoplay; user can click play
+            });
 
             player.addEventListener('loadedmetadata', () => {
+                if (player.videoWidth && player.videoHeight) {
+                    resText.textContent = `${player.videoWidth} x ${player.videoHeight} • HD MP4`;
+                    resText.style.color = '#8a8d91';
+                } else {
+                    resText.textContent = 'HD MP4 Video';
+                    resText.style.color = '#8a8d91';
+                }
+            });
+
+            player.addEventListener('playing', () => {
                 if (player.videoWidth && player.videoHeight) {
                     resText.textContent = `${player.videoWidth} x ${player.videoHeight} • HD MP4`;
                     resText.style.color = '#8a8d91';
@@ -84,19 +107,31 @@
             });
 
             player.addEventListener('error', (e) => {
-                console.warn('Player video error:', player.error, e);
-                // Attempt fallback to Hls if native player failed on unrecognized HLS format
-                if (window.Hls && Hls.isSupported() && !hlsInstance) {
-                    hlsInstance = new Hls();
-                    hlsInstance.loadSource(videoUrl);
-                    hlsInstance.attachMedia(player);
-                    hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => player.play().catch(() => {}));
-                    hlsInstance.on(Hls.Events.ERROR, (evt, d) => {
-                        if (d.fatal) {
+                console.warn('Player direct stream error:', player.error, e);
+                // Fallback: Fetch directly as a Blob using extension host privileges
+                if (!blobAttempted && !videoUrl.startsWith('blob:') && !videoUrl.startsWith('data:')) {
+                    blobAttempted = true;
+                    resText.textContent = 'Buffering HD stream...';
+                    resText.style.color = '#0a66c2';
+
+                    fetch(videoUrl)
+                        .then(r => {
+                            if (!r.ok) throw new Error('HTTP ' + r.status);
+                            return r.blob();
+                        })
+                        .then(blob => {
+                            bufferedBlobUrl = URL.createObjectURL(blob);
+                            player.src = bufferedBlobUrl;
+                            player.load();
+                            player.play().catch(() => {});
+                            resText.textContent = 'Direct Master Video';
+                            resText.style.color = '#8a8d91';
+                        })
+                        .catch(err => {
+                            console.warn('Blob buffer fallback failed:', err);
                             resText.textContent = 'Unable to stream directly. Please click "Download Video" above to save the file.';
                             resText.style.color = '#e74c3c';
-                        }
-                    });
+                        });
                 } else {
                     resText.textContent = 'Unable to stream directly. Please click "Download Video" above to save the file.';
                     resText.style.color = '#e74c3c';
@@ -110,11 +145,13 @@
     // --- HLS Client-Side Fragmented MP4 Assembler ---
 
     async function downloadHlsVideo(playlistUrl, filename, onProgress) {
-        // 1. Fetch playlist
+        // 1. Fetch master or variant playlist
         const res = await fetch(playlistUrl);
         const text = await res.text();
 
         let variantUrl = playlistUrl;
+        let variantText = text;
+
         // Check if master playlist containing multiple stream levels
         if (text.includes('#EXT-X-STREAM-INF')) {
             const lines = text.split('\n').map(l => l.trim());
@@ -135,12 +172,11 @@
             }
             if (bestUri) {
                 variantUrl = new URL(bestUri, playlistUrl).href;
+                const variantRes = await fetch(variantUrl);
+                variantText = await variantRes.text();
             }
         }
 
-        // 2. Fetch chosen quality variant playlist
-        const variantRes = await fetch(variantUrl);
-        const variantText = await variantRes.text();
         const vLines = variantText.split('\n').map(l => l.trim());
 
         const mapLine = vLines.find(l => l.startsWith('#EXT-X-MAP:URI='));
@@ -198,8 +234,28 @@
     }
 
     dlBtn.addEventListener('click', () => {
-        const idMatch = videoUrl.match(/\/([a-zA-Z0-9_\-]+)\.mp4/i) || videoUrl.match(/\/(\d+_[^/?]+)/) || videoUrl.match(/\/vid\/(?:pl\/)?(?:v\d+\/)?([a-zA-Z0-9_\-]+)/);
+        const idMatch = videoUrl.match(/\/([a-zA-Z0-9_\-]+)\.mp4/i) || 
+                        videoUrl.match(/\/(\d+_[^/?]+)/) || 
+                        videoUrl.match(/\/vid\/(?:pl\/)?(?:v\d+\/)?([a-zA-Z0-9_\-]+)/);
         const filename = idMatch ? `LinkedIn_${idMatch[1]}.mp4` : `LinkedIn_Video_${Date.now()}.mp4`;
+
+        // If video was already fetched into local blob buffer, download instantly
+        if (bufferedBlobUrl) {
+            const a = document.createElement('a');
+            a.href = bufferedBlobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => a.remove(), 1000);
+            dlBtn.innerHTML = `
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Download Started
+            `;
+            setTimeout(restoreDlBtn, 2500);
+            return;
+        }
 
         if (isHls) {
             dlBtn.disabled = true;
@@ -209,7 +265,12 @@
                 const pct = Math.round((curr / total) * 100);
                 dlBtn.textContent = `Downloading ${pct}%...`;
             }).then(() => {
-                dlBtn.textContent = 'Download Complete!';
+                dlBtn.innerHTML = `
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    Download Complete!
+                `;
                 setTimeout(restoreDlBtn, 2500);
             }).catch((err) => {
                 console.warn('HLS client-side assembly fallback:', err);
@@ -218,7 +279,12 @@
                     url: videoUrl,
                     filename: filename
                 }, () => {
-                    dlBtn.textContent = 'Download Started';
+                    dlBtn.innerHTML = `
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        Download Started
+                    `;
                     setTimeout(restoreDlBtn, 2500);
                 });
             });

@@ -6,6 +6,16 @@ const pageInterceptedVideoUrls = new Set();
 window.addEventListener('message', (e) => {
     if (e.data && e.data.type === 'toystaller_video_urls' && Array.isArray(e.data.urls)) {
         e.data.urls.forEach(url => pageInterceptedVideoUrls.add(url));
+        if (window.magicOverlayManager && window.magicOverlayManager.overlays) {
+            window.magicOverlayManager.overlays.forEach((entry, media) => {
+                if (media.tagName && media.tagName.toLowerCase() === 'video' && entry.container) {
+                    const btn = entry.container.querySelector('.magic-open-btn');
+                    if (btn && !btn.__resolvedVideoUrl && typeof entry.preResolve === 'function') {
+                        entry.preResolve();
+                    }
+                }
+            });
+        }
     }
 });
 
@@ -36,19 +46,19 @@ function scoreVideoUrl(url) {
     let score = 0;
     const lower = url.toLowerCase();
     if (lower.includes('/audio') || lower.includes('audio')) score -= 1000;
-    if (lower.includes('.mp4') || lower.includes('.m4v')) score += 50; // Progressive MP4 preferred
-    if (lower.includes('playlist/vid')) score += 20; // HLS / playlist stream
-    if (lower.includes('.mpd') || lower.includes('/manifest/') || lower.includes('stream_type=dash')) score -= 50;
-    if (lower.includes('bytestart') || lower.includes('byteend')) score -= 50;
-
-    if (lower.includes('1080')) score += 20;
-    else if (lower.includes('720')) score += 10;
-    else if (lower.includes('480')) score += 5;
-    else if (lower.includes('360')) score += 2;
-
+    if (lower.includes('bytestart') || lower.includes('byteend')) score -= 1000;
     if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) {
         score -= 500;
     }
+
+    if (lower.includes('.mp4') || lower.includes('.m4v')) score += 100; // Progressive MP4 preferred
+    if (lower.includes('mp4-1080p') || lower.includes('1080')) score += 50;
+    if (lower.includes('mp4-720p') || lower.includes('720')) score += 30;
+    if (lower.includes('mp4-480p') || lower.includes('480')) score += 20;
+    if (lower.includes('mp4-360p') || lower.includes('360')) score += 10;
+    if (lower.includes('playlist/vid')) score += 20;
+    if (lower.includes('/pl/') || lower.includes('.m3u8')) score += 15;
+    if (lower.includes('.mpd') || lower.includes('/manifest/') || lower.includes('stream_type=dash')) score -= 100;
 
     score += Math.min(url.length / 100, 5);
     return score;
@@ -60,7 +70,7 @@ function pickBestVideoUrl(urls) {
         const lower = u.toLowerCase();
         if (lower.includes('bytestart') || lower.includes('byteend')) return false;
         if (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp')) return false;
-        if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash') || lower.includes('manifest')) return false;
+        if (lower.includes('.mpd') || lower.includes('stream_type=dash')) return false;
         if (lower.includes('/audio') || lower.includes('audio')) return false;
         return true;
     });
@@ -187,6 +197,9 @@ function injectDownloadButtons() {
                 openBtn.addEventListener('mouseenter', () => {
                     openBtn.style.opacity = '1';
                     openBtn.style.backgroundColor = 'rgba(10, 102, 194, 0.95)';
+                    if (isVideo && !openBtn.__resolvedVideoUrl) {
+                        preResolveVideoUrl(openBtn);
+                    }
                 });
                 openBtn.addEventListener('mouseleave', () => {
                     openBtn.style.opacity = '0.55';
@@ -340,7 +353,7 @@ function injectDownloadButtons() {
 
             const getMediaUrl = (callback, silent = false) => {
                 if (isVideo) {
-                    // 1. Try DOM extraction first (LinkedIn provides progressive MP4s directly in data-sources)
+                    // 1. Try DOM extraction first (synchronous & instant!)
                     if (platform.extractVideoUrlFromDOM) {
                         const domUrl = platform.extractVideoUrlFromDOM(media);
                         if (domUrl) {
@@ -349,7 +362,22 @@ function injectDownloadButtons() {
                         }
                     }
 
-                    // 2. Try React Fiber extraction
+                    // 2. Try in-memory intercepted network URLs (instant!)
+                    const currentSrc = media.currentSrc || media.src || '';
+                    const isBlobSource = currentSrc.startsWith('blob:') || currentSrc.startsWith('data:');
+                    if (isBlobSource && pageInterceptedVideoUrls.size > 0) {
+                        const platformVideos = platform.filterBackgroundUrls ? platform.filterBackgroundUrls(Array.from(pageInterceptedVideoUrls), true) : Array.from(pageInterceptedVideoUrls);
+
+                        if (platformVideos.length > 0) {
+                            const best = pickBestVideoUrl(platformVideos);
+                            if (best) {
+                                callback(best.split('#')[0]);
+                                return;
+                            }
+                        }
+                    }
+
+                    // 3. Try React Fiber extraction with short 200ms timeout
                     let resolved = false;
                     const handler = (e) => {
                         if (!e.data || e.data.type !== 'magic_response_react_url_' + magicId) return;
@@ -370,7 +398,7 @@ function injectDownloadButtons() {
                         resolved = true;
                         window.removeEventListener('message', handler);
                         getMediaUrlFallback(callback, silent);
-                    }, 350);
+                    }, 200);
                     return;
                 }
 
@@ -454,17 +482,16 @@ function injectDownloadButtons() {
                 if (entry && entry.container) {
                     const openBtn = entry.container.querySelector('.magic-open-btn');
                     if (openBtn) {
+                        entry.preResolve = () => preResolveVideoUrl(openBtn);
                         preResolveVideoUrl(openBtn);
 
-                        if (!openBtn.__resolvedVideoUrl) {
-                            const onCanPlay = () => {
-                                preResolveVideoUrl(openBtn);
-                                media.removeEventListener('canplay', onCanPlay);
-                                media.removeEventListener('playing', onCanPlay);
-                            };
-                            media.addEventListener('canplay', onCanPlay);
-                            media.addEventListener('playing', onCanPlay);
-                        }
+                        ['loadstart', 'loadedmetadata', 'canplay', 'playing', 'timeupdate'].forEach(evt => {
+                            media.addEventListener(evt, () => {
+                                if (!openBtn.__resolvedVideoUrl) {
+                                    preResolveVideoUrl(openBtn);
+                                }
+                            }, { passive: true });
+                        });
                     }
                 }
             }

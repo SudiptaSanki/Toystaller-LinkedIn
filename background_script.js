@@ -21,7 +21,8 @@ chrome.webRequest.onResponseStarted.addListener(
                             lowerUrl.includes('mime=video') ||
                             lowerUrl.includes('/video/') ||
                             lowerUrl.includes('playback') ||
-                            lowerUrl.includes('videoplayback')
+                            lowerUrl.includes('videoplayback') ||
+                            lowerUrl.includes('playlist/vid')
                         ));
         const isImage = (type === 'image' && isCdn) || 
                         (isCdn && (
@@ -33,13 +34,10 @@ chrome.webRequest.onResponseStarted.addListener(
             if (!interceptedMedia[tabId]) {
                 interceptedMedia[tabId] = { video: new Set(), img: new Set() };
             }
-            if (isVideo && !lowerUrl.includes('/audio') && !lowerUrl.includes('.mpd') && !lowerUrl.includes('.m3u8') && !lowerUrl.includes('manifest')) {
+            if (isVideo && !lowerUrl.includes('/audio') && !lowerUrl.includes('.mpd') && !lowerUrl.includes('bytestart') && !lowerUrl.includes('stream_type=dash')) {
                 let clean = url.replace(/\\\//g, '/')
                                .replace(/&amp;/g, '&')
                                .replace(/\\u0026/g, '&')
-                               .replace(/([?&])bytestart=\d+&?/g, '$1')
-                               .replace(/([?&])byteend=\d+&?/g, '$1')
-                               .replace(/[?&]$/, '')
                                .trim();
                 interceptedMedia[tabId].video.add(clean);
             } else if (isImage) {
@@ -83,14 +81,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                         lowerUrl.includes('.webm') || 
                         lowerUrl.includes('/video/') || 
                         lowerUrl.includes('playback') ||
+                        lowerUrl.includes('playlist/vid') ||
                         lowerUrl.includes('mime=video');
-        if (isVideo) {
-            const playerUrl = chrome.runtime.getURL('player.html') + '?url=' + encodeURIComponent(url);
-            chrome.tabs.create({ url: playerUrl });
-        } else {
-            chrome.tabs.create({ url: url });
+        const targetUrl = isVideo ? (chrome.runtime.getURL('player.html') + '?url=' + encodeURIComponent(url)) : url;
+        const tabProps = { url: targetUrl };
+        if (sender.tab && sender.tab.windowId) {
+            tabProps.windowId = sender.tab.windowId;
+            if (typeof sender.tab.index === 'number') tabProps.index = sender.tab.index + 1;
         }
+        chrome.tabs.create(tabProps, (createdTab) => {
+            if (chrome.runtime.lastError) {
+                console.warn("Toystaller: tabs.create failed, falling back in same window:", chrome.runtime.lastError.message);
+                chrome.tabs.create({ url: targetUrl });
+            }
+        });
         sendResponse({ success: true });
+        return true;
     }
 });
 

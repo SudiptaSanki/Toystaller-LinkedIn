@@ -113,7 +113,7 @@
                 if (isVideo && (lower.includes('videocover') || lower.includes('/image/') || lower.includes('.jpg') || lower.includes('.png') || lower.includes('.webp'))) {
                     return false;
                 }
-                if (lower.includes('.m3u8') || lower.includes('.mpd') || lower.includes('stream_type=dash') || lower.includes('bytestart') || lower.includes('/audio') || lower.includes('manifest')) {
+                if (lower.includes('.mpd') || lower.includes('stream_type=dash') || lower.includes('bytestart') || lower.includes('/audio')) {
                     return false;
                 }
                 return (lower.includes('licdn.com') && (lower.includes('playlist/vid') || lower.includes('video') || lower.includes('playback') || lower.includes('progressive'))) || lower.includes('.mp4');
@@ -156,8 +156,8 @@
                 return false;
             }
 
-            // Reject DASH manifests, HLS playlists, segments, and audio tracks that cause 0:00 video playback
-            if (lowerVal.includes('.mpd') || lowerVal.includes('.m3u8') || lowerVal.includes('stream_type=dash') || lowerVal.includes('/manifest') || lowerVal.includes('bytestart') || lowerVal.includes('/audio') || lowerKey.includes('audio')) {
+            // Reject DASH manifests, audio tracks, and segment chunks
+            if (lowerVal.includes('.mpd') || lowerVal.includes('stream_type=dash') || lowerVal.includes('/manifest') || lowerVal.includes('bytestart') || lowerVal.includes('/audio') || lowerKey.includes('audio')) {
                 return false;
             }
 
@@ -178,10 +178,11 @@
                 let bestScore = -1;
                 for (const stream of val.progressiveStreams) {
                     if (!stream) continue;
-                    const streamUrl = stream.streamingLocation || stream.url || stream.src;
+                    let streamUrl = stream.streamingLocation || stream.url || stream.src;
                     if (!streamUrl || typeof streamUrl !== 'string' || !streamUrl.startsWith('http')) continue;
-                    if (streamUrl.includes('manifest') || streamUrl.includes('.mpd') || streamUrl.includes('.m3u8')) continue;
+                    if (streamUrl.includes('manifest') || streamUrl.includes('.mpd') || streamUrl.includes('/audio')) continue;
 
+                    streamUrl = streamUrl.replace(/&amp;/g, '&').replace(/\\u0026/g, '&');
                     const bitrate = parseInt(stream.bitRate || stream.bitrate || '0', 10);
                     const height = parseInt(stream.height || '0', 10);
                     const size = parseInt(stream.size || '0', 10);
@@ -196,20 +197,20 @@
 
             // 2. Direct progressive stream object with streamingLocation
             if (typeof val.streamingLocation === 'string' && val.streamingLocation.startsWith('http')) {
-                if (!val.streamingLocation.includes('manifest') && !val.streamingLocation.includes('.mpd') && !val.streamingLocation.includes('.m3u8')) {
-                    return val.streamingLocation.split('#')[0];
+                if (!val.streamingLocation.includes('manifest') && !val.streamingLocation.includes('.mpd')) {
+                    return val.streamingLocation.replace(/&amp;/g, '&').split('#')[0];
                 }
             }
 
             // 3. streamingUrl or progressiveUrl
             if (typeof val.streamingUrl === 'string' && val.streamingUrl.startsWith('http')) {
-                if (!val.streamingUrl.includes('manifest') && !val.streamingUrl.includes('.mpd') && !val.streamingUrl.includes('.m3u8')) {
-                    return val.streamingUrl.split('#')[0];
+                if (!val.streamingUrl.includes('manifest') && !val.streamingUrl.includes('.mpd')) {
+                    return val.streamingUrl.replace(/&amp;/g, '&').split('#')[0];
                 }
             }
             if (typeof val.progressiveUrl === 'string' && val.progressiveUrl.startsWith('http')) {
-                if (!val.progressiveUrl.includes('manifest') && !val.progressiveUrl.includes('.mpd') && !val.progressiveUrl.includes('.m3u8')) {
-                    return val.progressiveUrl.split('#')[0];
+                if (!val.progressiveUrl.includes('manifest') && !val.progressiveUrl.includes('.mpd')) {
+                    return val.progressiveUrl.replace(/&amp;/g, '&').split('#')[0];
                 }
             }
 
@@ -219,7 +220,7 @@
         isValidVideo(url) {
             if (!url || typeof url !== 'string' || !url.startsWith('http')) return false;
             const lower = url.toLowerCase();
-            if (lower.includes('.mpd') || lower.includes('.m3u8') || lower.includes('manifest')) return false;
+            if (lower.includes('.mpd') || lower.includes('stream_type=dash')) return false;
             if (lower.includes('/audio') || lower.includes('bytestart')) return false;
             return !(lower.includes('//www.linkedin.com') || lower.includes('//linkedin.com'));
         },
@@ -227,31 +228,51 @@
         extractVideoUrlFromDOM(el) {
             if (!el) return null;
 
-            // Check el itself, video child if el is a wrapper, or nearest container with data-sources
             const targetEl = (el.tagName === 'VIDEO' ? el : (el.querySelector ? el.querySelector('video') : el)) || el;
-            let sourcesData = targetEl.getAttribute('data-sources') ||
-                                (targetEl.closest && targetEl.closest('[data-sources]') && targetEl.closest('[data-sources]').getAttribute('data-sources')) ||
-                                (targetEl.parentElement && targetEl.parentElement.getAttribute('data-sources')) ||
-                                (el.closest && el.closest('[data-sources]') && el.closest('[data-sources]').getAttribute('data-sources'));
+            const container = targetEl.closest ? targetEl.closest('.feed-shared-video-player, .feed-shared-update-v2, .update-components-video, .video-js, div[data-urn], article, .artdeco-modal, .msg-s-message-list-content') : null;
 
-            if (!sourcesData && el.querySelector) {
-                const childWithSources = el.querySelector('[data-sources]');
-                if (childWithSources) sourcesData = childWithSources.getAttribute('data-sources');
+            // 1. Check data-sources attribute on targetEl, container, or parent chain
+            let sourcesData = targetEl.getAttribute ? targetEl.getAttribute('data-sources') : null;
+
+            if (!sourcesData && container) {
+                const withSources = container.querySelector('[data-sources]');
+                if (withSources) sourcesData = withSources.getAttribute('data-sources');
             }
 
+            if (!sourcesData) {
+                let parent = targetEl.parentElement;
+                for (let i = 0; i < 6 && parent; i++) {
+                    if (parent.hasAttribute && parent.hasAttribute('data-sources')) {
+                        sourcesData = parent.getAttribute('data-sources');
+                        break;
+                    }
+                    parent = parent.parentElement;
+                }
+            }
+
+            // 2. Parse data-sources if found
             if (sourcesData) {
                 try {
-                    const sources = typeof sourcesData === 'string' ? JSON.parse(sourcesData) : sourcesData;
-                    if (Array.isArray(sources)) {
+                    let raw = sourcesData;
+                    if (typeof raw === 'string') {
+                        if (raw.includes('&quot;') || raw.includes('&amp;')) {
+                            const txt = document.createElement('textarea');
+                            txt.innerHTML = raw;
+                            raw = txt.value;
+                        }
+                        sourcesData = JSON.parse(raw);
+                    }
+                    if (Array.isArray(sourcesData)) {
                         let bestMp4 = null;
                         let bestMp4Bitrate = -1;
                         let bestHls = null;
                         let bestHlsBitrate = -1;
 
-                        for (const src of sources) {
+                        for (const src of sourcesData) {
                             if (!src) continue;
-                            const srcUrl = src.src || src.url || src.streamingLocation;
+                            let srcUrl = src.src || src.url || src.streamingLocation;
                             if (srcUrl && typeof srcUrl === 'string' && this.isValidVideo(srcUrl)) {
+                                srcUrl = srcUrl.replace(/&amp;/g, '&').replace(/\\u0026/g, '&');
                                 if (srcUrl.includes('manifest') || srcUrl.includes('.mpd') || srcUrl.includes('/audio')) continue;
                                 if (src.type && src.type.includes('dash')) continue;
 
@@ -277,7 +298,32 @@
                 } catch (e) {}
             }
 
-            // Fallback: Check if targetEl has direct non-blob src or source children
+            // 3. Check for server-rendered JSON in <code> or <script> tags inside the post
+            if (container) {
+                const codeElements = container.querySelectorAll('code, script[type="application/json"]');
+                for (const code of codeElements) {
+                    const content = code.textContent || '';
+                    if (content.includes('progressiveStreams') || content.includes('dms.licdn.com/playlist/vid')) {
+                        try {
+                            const cleaned = content.replace(/^<!--/, '').replace(/-->$/, '').trim();
+                            const data = JSON.parse(cleaned);
+                            const found = this.extractPriorityReactUrl(data, true);
+                            if (found) return found;
+                        } catch (e) {}
+                    }
+                }
+            }
+
+            // 4. Check for video attributes like data-playback-url, data-video-url, data-stream-url
+            const attrNames = ['data-playback-url', 'data-video-url', 'data-stream-url', 'data-url'];
+            for (const attr of attrNames) {
+                const val = targetEl.getAttribute(attr) || (container && container.getAttribute(attr));
+                if (val && typeof val === 'string' && val.startsWith('http') && this.isValidVideo(val)) {
+                    return val.replace(/&amp;/g, '&').split('#')[0];
+                }
+            }
+
+            // 5. Fallback: Direct non-blob src or source children
             const currentSrc = targetEl.currentSrc || targetEl.src;
             if (currentSrc && typeof currentSrc === 'string' && !currentSrc.startsWith('blob:') && !currentSrc.startsWith('data:') && this.isValidVideo(currentSrc)) {
                 return currentSrc.split('#')[0];
