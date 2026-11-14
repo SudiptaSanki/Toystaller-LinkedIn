@@ -240,5 +240,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 - Open an Issue or Pull Request on [GitHub Issues](https://github.com/SudiptaSanki/Toystaller-LinkedIn/issues).
 
 <!-- autobot:start -->
-<!-- s:57402acb t:2026-11-13T09:41:15.328Z a:improved error handling b:4277 -->
+<!-- s:747e32e1 t:2026-11-14T09:03:48.066Z a:schema migration b:4819 -->
 <!-- autobot:end -->
