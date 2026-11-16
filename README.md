@@ -240,5 +240,5 @@ Contributions, feature suggestions, and bug reports are warmly welcome!
 - Open an Issue or Pull Request on [GitHub Issues](https://github.com/SudiptaSanki/Toystaller-LinkedIn/issues).
 
 <!-- autobot:start -->
-<!-- s:92c30024 t:2026-11-16T09:53:04.479Z a:streamlined workflow b:9091 -->
+<!-- s:33e50dd3 t:2026-11-16T09:53:14.057Z a:cleaned up tests b:4873 -->
 <!-- autobot:end -->
